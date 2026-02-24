@@ -53,3 +53,18 @@ CREATE TABLE IF NOT EXISTS uazapi_groups (
     PRIMARY KEY (jid, instance_name),
     INDEX idx_instance (instance_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS uazapi_schedule (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    instance_name VARCHAR(255) NOT NULL,
+    task_type VARCHAR(50) NOT NULL DEFAULT 'status',
+    payload TEXT NOT NULL,
+    scheduled_at DATETIME NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    result TEXT DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    executed_at DATETIME DEFAULT NULL,
+    INDEX idx_schedule_status (status),
+    INDEX idx_schedule_at (scheduled_at),
+    INDEX idx_schedule_instance (instance_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -138,6 +138,86 @@ if (isset($_GET['action'])) {
         exit;
     }
 
+    // 5b. Agendar Status
+    if ($action === 'schedule_status') {
+        $instanceName = $input['instance_name'] ?? '';
+        $schedule = $input['schedule'] ?? 'now';
+
+        if (empty($instanceName)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Selecione uma instância.']);
+            exit;
+        }
+
+        // Montar payload da API
+        $apiPayload = ['type' => $input['type'] ?? 'text'];
+        if ($input['type'] === 'text') {
+            $apiPayload['text'] = $input['text'] ?? '';
+            $apiPayload['background_color'] = (int)($input['bg_color'] ?? 19);
+            $apiPayload['font'] = (int)($input['font'] ?? 1);
+        }
+        else {
+            $apiPayload['file'] = $input['file'] ?? '';
+            if (!empty($input['text'])) {
+                $apiPayload['text'] = $input['text'];
+            }
+        }
+
+        // Calcular horário agendado
+        $now = new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
+        switch ($schedule) {
+            case '+5min':
+                $now->modify('+5 minutes');
+                break;
+            case '+10min':
+                $now->modify('+10 minutes');
+                break;
+            case '+30min':
+                $now->modify('+30 minutes');
+                break;
+            case '+1hour':
+                $now->modify('+1 hour');
+                break;
+            case '+2hours':
+                $now->modify('+2 hours');
+                break;
+            case 'tomorrow_8':
+                $now->modify('+1 day');
+                $now->setTime(8, 0, 0);
+                break;
+            case 'tomorrow_same':
+                $now->modify('+1 day');
+                break;
+            default:
+                $now->modify('+5 minutes');
+        }
+        $scheduledAt = $now->format('Y-m-d H:i:s');
+
+        $stmt = $pdo->prepare("INSERT INTO uazapi_schedule (instance_name, task_type, payload, scheduled_at) VALUES (?, 'status', ?, ?)");
+        $stmt->execute([$instanceName, json_encode($apiPayload), $scheduledAt]);
+
+        echo json_encode(['success' => true, 'scheduled_at' => $scheduledAt, 'id' => $pdo->lastInsertId()]);
+        exit;
+    }
+
+    // 5c. Listar Agendamentos
+    if ($action === 'get_schedules') {
+        $name = $_GET['name'] ?? '';
+        $stmt = $pdo->prepare("SELECT id, task_type, payload, scheduled_at, status, created_at, executed_at FROM uazapi_schedule WHERE instance_name = ? ORDER BY scheduled_at DESC LIMIT 30");
+        $stmt->execute([$name]);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+    }
+
+    // 5d. Cancelar Agendamento
+    if ($action === 'cancel_schedule') {
+        $id = $input['id'] ?? 0;
+        $stmt = $pdo->prepare("UPDATE uazapi_schedule SET status = 'cancelled' WHERE id = ? AND status = 'pending'");
+        $stmt->execute([$id]);
+        echo json_encode(['success' => $stmt->rowCount() > 0]);
+        exit;
+    }
+
     // 6. Sincronizar Grupos via API
     if ($action === 'sync_groups') {
         $instanceName = $input['instance_name'] ?? '';
@@ -1047,8 +1127,30 @@ if (isset($_GET['action'])) {
 
                     <label>Texto / Legenda</label>
                     <textarea id="status-text" style="height: 60px;" placeholder="Texto do status..."></textarea>
-                    <button class="btn-action" onclick="sendStatus()">Publicar Status</button>
+
+                    <label>⏰ Quando enviar</label>
+                    <select id="status-schedule" style="margin-bottom: 8px;">
+                        <option value="now">🟢 Agora</option>
+                        <option value="+5min">Daqui a 5 minutos</option>
+                        <option value="+10min">Daqui a 10 minutos</option>
+                        <option value="+30min">Daqui a 30 minutos</option>
+                        <option value="+1hour">Daqui a 1 hora</option>
+                        <option value="+2hours">Daqui a 2 horas</option>
+                        <option value="tomorrow_8">🌅 Amanhã cedo (8h)</option>
+                        <option value="tomorrow_same">🔄 Amanhã neste horário</option>
+                    </select>
+
+                    <button class="btn-action" onclick="sendStatus()" id="btn-send-status">Publicar Status</button>
                     <div id="status-send-status" class="status-msg"></div>
+                </div>
+
+                <!-- Agendamentos Pendentes -->
+                <div class="tool-box">
+                    <h3>📅 Agendamentos</h3>
+                    <button class="btn-action" onclick="loadSchedules()"
+                        style="background:#34B7F1;margin-bottom:8px;font-size:12px;padding:6px 12px;">🔄
+                        Atualizar</button>
+                    <div id="schedules-list" style="font-size:12px;">Clique em Atualizar para ver.</div>
                 </div>
 
             </div>
@@ -1520,7 +1622,7 @@ if (isset($_GET['action'])) {
             } catch (error) { console.error("Erro:", error); }
         }
 
-        // Inicia carregando as instâncias que já estão no banco
+        // Inicia carregando as instâs qstão no banco
         loadInstances();
         setInterval(fetchLogs, 2000);
     </script>
