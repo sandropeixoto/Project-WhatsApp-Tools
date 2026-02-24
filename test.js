@@ -27,11 +27,12 @@
         // --- TABS ---
         function switchTab(tabId, btn) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
             document.getElementById('tab-' + tabId).classList.add('active');
             btn.classList.add('active');
 
             if (tabId === 'groups') loadGroups();
+            if (tabId === 'schedules') loadSchedules();
         }
 
         // --- TOGGLE STATUS FIELDS ---
@@ -324,6 +325,88 @@
             }
         }
 
+        // --- CARREGAR E EXCLUIR AGENDAMENTOS ---
+        async function loadSchedules() {
+            const activeInstance = document.getElementById('instance-selector').value;
+            const listDiv = document.getElementById('schedules-list');
+
+            if (!activeInstance) {
+                listDiv.innerHTML = '<div style="text-align: center; color: #666; font-size: 13px; padding: 30px 0;">Selecione uma instância primeiro</div>';
+                return;
+            }
+
+            try {
+                listDiv.innerHTML = '<div class="text-center text-muted py-5 bg-white border rounded"><i class="bi bi-arrow-repeat fs-1 d-block mb-2 text-info spinner-border border-0"></i> Carregando agendamentos...</div>';
+
+                const res = await fetch(`index.php?action=get_schedules&name=${encodeURIComponent(activeInstance)}`);
+                const schedules = await res.json();
+
+                if (!Array.isArray(schedules) || schedules.length === 0) {
+                    listDiv.innerHTML = '<div style="text-align: center; color: #666; font-size: 13px; padding: 30px 0;">Nenhum agendamento ativo.</div>';
+                    return;
+                }
+
+                let html = `<table class="groups-table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Status</th>
+                            <th>Tipo</th>
+                            <th>Agendado Para</th>
+                            <th>Payload</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+                schedules.forEach(s => {
+                    let statusBadge = s.status === 'pending' ? '<span class="badge bg-warning text-dark">Pendente</span>' :
+                        (s.status === 'success' ? '<span class="badge bg-success">Enviado</span>' :
+                            (s.status === 'cancelled' ? '<span class="badge bg-secondary">Cancelado</span>' :
+                                '<span class="badge bg-danger">Falhou</span>'));
+
+                    html += `<tr>
+                        <td style="text-align:center;">${s.id}</td>
+                        <td style="text-align:center;">${statusBadge}</td>
+                        <td style="text-align:center;">${escapeHTML(s.task_type)}</td>
+                        <td>${new Date(s.scheduled_at).toLocaleString()}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHTML(s.payload)}">${escapeHTML(s.payload)}</td>
+                        <td style="text-align:center;">
+                            ${s.status === 'pending' ? `<button class="btn btn-sm btn-outline-danger shadow-sm" title="Excluir Agendamento" onclick="deleteSchedule(${s.id})"><i class="bi bi-trash"></i></button>` : ''}
+                        </td>
+                    </tr>`;
+                });
+
+                html += '</tbody></table>';
+                listDiv.innerHTML = html;
+
+            } catch (e) {
+                listDiv.innerHTML = '<div style="text-align: center; color: red; font-size: 13px; padding: 30px 0;">Erro ao carregar agendamentos.</div>';
+            }
+        }
+
+        async function deleteSchedule(id) {
+            if (!confirm('Tem certeza que deseja cancelar este agendamento?')) return;
+
+            try {
+                const res = await fetch('index.php?action=cancel_schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    alert('Agendamento cancelado com sucesso!');
+                    loadSchedules();
+                } else {
+                    alert('Erro ao cancelar agendamento.');
+                }
+            } catch (e) {
+                alert('Falha de conexão ao cancelar agendamento.');
+            }
+        }
+
         function copyJid(jid) {
             navigator.clipboard.writeText(jid).then(() => {
                 const old = event.target.closest('.jid-cell');
@@ -541,6 +624,5 @@
         }
 
         // Initialize Feed
-        initFeed();
-
+        initFeed
     

@@ -905,6 +905,11 @@ if (isset($_GET['action'])) {
                     <i class="bi bi-people me-2"></i> Grupos
                 </button>
             </li>
+            <li class="nav-item flex-fill text-center">
+                <button class="nav-link w-100" onclick="switchTab('schedules', this)">
+                    <i class="bi bi-calendar-event me-2"></i> Agendamentos
+                </button>
+            </li>
         </ul>
 
         <!-- Tab: Conversas -->
@@ -929,6 +934,25 @@ if (isset($_GET['action'])) {
                     <div class="text-center text-muted py-5 bg-white border rounded">
                         <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                         Clique em "Atualizar Grupos" para carregar
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Agendamentos -->
+        <div class="tab-content chat-bg" id="tab-schedules">
+            <div class="container-fluid py-4 w-100 mx-auto" style="max-width: 1000px;">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="mb-0 fw-bold">Mensagens Agendadas</h4>
+                    <button class="btn btn-info text-white btn-sm w-auto fw-semibold rounded-pill px-3 shadow-sm"
+                        onclick="loadSchedules()">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Atualizar Agendamentos
+                    </button>
+                </div>
+                <div id="schedules-list" class="table-responsive shadow-sm rounded-3">
+                    <div class="text-center text-muted py-5 bg-white border rounded">
+                        <i class="bi bi-calendar-event fs-1 d-block mb-2"></i>
+                        Clique em "Atualizar Agendamentos" para carregar
                     </div>
                 </div>
             </div>
@@ -1051,21 +1075,6 @@ if (isset($_GET['action'])) {
                     <div id="status-send-status" class="mt-2 text-center small fw-medium"></div>
                 </div>
             </div>
-
-            <!-- Schedules Sync Card -->
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <h6 class="card-title fw-bold mb-3 d-flex align-items-center border-bottom pb-2">
-                        <i class="bi bi-calendar-event text-info me-2 fs-5"></i> Agendamentos Ativos
-                    </h6>
-                    <button class="btn btn-outline-info btn-sm w-100 fw-semibold mb-3" onclick="loadSchedules()">
-                        <i class="bi bi-arrow-clockwise me-1"></i> Atualizar Lista
-                    </button>
-                    <div id="schedules-list" class="small text-muted text-center pt-2">Clique em Atualizar para buscar.
-                    </div>
-                </div>
-            </div>
-
         </div>
     </div>
 
@@ -1100,11 +1109,12 @@ if (isset($_GET['action'])) {
         // --- TABS ---
         function switchTab(tabId, btn) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
             document.getElementById('tab-' + tabId).classList.add('active');
             btn.classList.add('active');
 
             if (tabId === 'groups') loadGroups();
+            if (tabId === 'schedules') loadSchedules();
         }
 
         // --- TOGGLE STATUS FIELDS ---
@@ -1397,6 +1407,88 @@ if (isset($_GET['action'])) {
             }
         }
 
+        // --- CARREGAR E EXCLUIR AGENDAMENTOS ---
+        async function loadSchedules() {
+            const activeInstance = document.getElementById('instance-selector').value;
+            const listDiv = document.getElementById('schedules-list');
+
+            if (!activeInstance) {
+                listDiv.innerHTML = '<div style="text-align: center; color: #666; font-size: 13px; padding: 30px 0;">Selecione uma instância primeiro</div>';
+                return;
+            }
+
+            try {
+                listDiv.innerHTML = '<div class="text-center text-muted py-5 bg-white border rounded"><i class="bi bi-arrow-repeat fs-1 d-block mb-2 text-info spinner-border border-0"></i> Carregando agendamentos...</div>';
+
+                const res = await fetch(`index.php?action=get_schedules&name=${encodeURIComponent(activeInstance)}`);
+                const schedules = await res.json();
+
+                if (!Array.isArray(schedules) || schedules.length === 0) {
+                    listDiv.innerHTML = '<div style="text-align: center; color: #666; font-size: 13px; padding: 30px 0;">Nenhum agendamento ativo.</div>';
+                    return;
+                }
+
+                let html = `<table class="groups-table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Status</th>
+                            <th>Tipo</th>
+                            <th>Agendado Para</th>
+                            <th>Payload</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+                schedules.forEach(s => {
+                    let statusBadge = s.status === 'pending' ? '<span class="badge bg-warning text-dark">Pendente</span>' :
+                        (s.status === 'success' ? '<span class="badge bg-success">Enviado</span>' :
+                            (s.status === 'cancelled' ? '<span class="badge bg-secondary">Cancelado</span>' :
+                                '<span class="badge bg-danger">Falhou</span>'));
+
+                    html += `<tr>
+                        <td style="text-align:center;">${s.id}</td>
+                        <td style="text-align:center;">${statusBadge}</td>
+                        <td style="text-align:center;">${escapeHTML(s.task_type)}</td>
+                        <td>${new Date(s.scheduled_at).toLocaleString()}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHTML(s.payload)}">${escapeHTML(s.payload)}</td>
+                        <td style="text-align:center;">
+                            ${s.status === 'pending' ? `<button class="btn btn-sm btn-outline-danger shadow-sm" title="Excluir Agendamento" onclick="deleteSchedule(${s.id})"><i class="bi bi-trash"></i></button>` : ''}
+                        </td>
+                    </tr>`;
+                });
+
+                html += '</tbody></table>';
+                listDiv.innerHTML = html;
+
+            } catch (e) {
+                listDiv.innerHTML = '<div style="text-align: center; color: red; font-size: 13px; padding: 30px 0;">Erro ao carregar agendamentos.</div>';
+            }
+        }
+
+        async function deleteSchedule(id) {
+            if (!confirm('Tem certeza que deseja cancelar este agendamento?')) return;
+
+            try {
+                const res = await fetch('index.php?action=cancel_schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    alert('Agendamento cancelado com sucesso!');
+                    loadSchedules();
+                } else {
+                    alert('Erro ao cancelar agendamento.');
+                }
+            } catch (e) {
+                alert('Falha de conexão ao cancelar agendamento.');
+            }
+        }
+
         function copyJid(jid) {
             navigator.clipboard.writeText(jid).then(() => {
                 const old = event.target.closest('.jid-cell');
@@ -1614,8 +1706,7 @@ if (isset($_GET['action'])) {
         }
 
         // Initialize Feed
-        initFeed();
-
+        initFeed
     </script>
 </body>
 
