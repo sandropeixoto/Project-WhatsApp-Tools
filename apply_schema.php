@@ -145,6 +145,24 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     echo "✅ Tabela uazapi_schedule OK.\n";
 
+    // Criar tabela uazapi_agents
+    $pdo->exec("CREATE TABLE IF NOT EXISTS uazapi_agents (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        instance_name VARCHAR(255) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        prompt TEXT NOT NULL,
+        recipient VARCHAR(100) NOT NULL,
+        interval_minutes INT NOT NULL DEFAULT 60,
+        restricted_hours VARCHAR(100) DEFAULT NULL,
+        requires_review TINYINT(1) DEFAULT 1,
+        status VARCHAR(20) DEFAULT 'active',
+        last_exec_at DATETIME DEFAULT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_agent_instance (instance_name),
+        INDEX idx_agent_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    echo "✅ Tabela uazapi_agents OK.\n";
+
     echo "\n🎉 Schema aplicado com sucesso!\n";
 
 }

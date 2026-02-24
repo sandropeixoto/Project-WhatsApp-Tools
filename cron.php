@@ -61,6 +61,79 @@ foreach ($tasks as $task) {
     if ($httpCode >= 200 && $httpCode < 300) {
         $updateStmt->execute(['sent', $response, $task['id']]);
         echo date('Y-m-d H:i:s') . " [OK] Task #{$task['id']} ({$task['task_type']}) enviado.\n";
+
+        // Verificar se é uma mensagem de um AI Agent para gerar a próxima
+        if (isset($payload['agent_id'])) {
+            require_once __DIR__ . '/opencode_api.php';
+            $agentId = $payload['agent_id'];
+
+            $stmtAgent = $pdo->prepare("SELECT * FROM uazapi_agents WHERE id = ? AND status = 'active'");
+            $stmtAgent->execute([$agentId]);
+            $agent = $stmtAgent->fetch(PDO::FETCH_ASSOC);
+
+            if ($agent) {
+                $aiResult = generateOpenCodeMessage($agent['prompt']);
+                if ($aiResult['success']) {
+                    $nextText = $aiResult['message'];
+                    $nextStatus = $agent['requires_review'] ? 'paused' : 'pending';
+
+                    // Calcular próximo horário baseado no interval_minutes
+                    $interval = (int)$agent['interval_minutes'];
+                    $now = new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
+                    $now->modify("+{$interval} minutes");
+
+                    // Lógica de restricted_hours (ex: "22:00-08:00")
+                    if (!empty($agent['restricted_hours']) && strpos($agent['restricted_hours'], '-') !== false) {
+                        list($start, $end) = explode('-', $agent['restricted_hours']);
+                        $currentHourMin = $now->format('H:i');
+
+                        $startDt = DateTime::createFromFormat('H:i', trim($start), new DateTimeZone('America/Sao_Paulo'));
+                        $endDt = DateTime::createFromFormat('H:i', trim($end), new DateTimeZone('America/Sao_Paulo'));
+                        if ($startDt && $endDt) {
+                            $timeNow = strtotime($currentHourMin);
+                            $timeStart = strtotime(trim($start));
+                            $timeEnd = strtotime(trim($end));
+
+                            $isRestricted = false;
+                            if ($timeStart > $timeEnd) { // Ex: 22:00-08:00
+                                if ($timeNow >= $timeStart || $timeNow <= $timeEnd)
+                                    $isRestricted = true;
+                            }
+                            else { // Ex: 08:00-12:00
+                                if ($timeNow >= $timeStart && $timeNow <= $timeEnd)
+                                    $isRestricted = true;
+                            }
+
+                            if ($isRestricted) {
+                                // Redefine o horário para 1 minuto após o fim da restrição
+                                $now = new DateTime($now->format('Y-m-d') . ' ' . trim($end), new DateTimeZone('America/Sao_Paulo'));
+                                if ($timeStart > $timeEnd && $timeNow >= $timeStart) {
+                                    $now->modify('+1 day');
+                                }
+                                $now->modify('+1 minute');
+                            }
+                        }
+                    }
+
+                    $scheduledAt = $now->format('Y-m-d H:i:s');
+                    $nextPayload = [
+                        'number' => $agent['recipient'],
+                        'text' => $nextText,
+                        'agent_id' => $agent['id']
+                    ];
+
+                    $stmtSched = $pdo->prepare("INSERT INTO uazapi_schedule (instance_name, task_type, payload, scheduled_at, status) VALUES (?, 'message', ?, ?, ?)");
+                    $stmtSched->execute([$agent['instance_name'], json_encode($nextPayload), $scheduledAt, $nextStatus]);
+
+                    $pdo->prepare("UPDATE uazapi_agents SET last_exec_at = NOW() WHERE id = ?")->execute([$agentId]);
+
+                    echo date('Y-m-d H:i:s') . " [OK] Agent #{$agentId} gerou próxima msg agendada para: {$scheduledAt}.\n";
+                }
+                else {
+                    echo date('Y-m-d H:i:s') . " [ERROR] Agent #{$agentId} falhou ao gerar msg: {$aiResult['error']}.\n";
+                }
+            }
+        }
     }
     else {
         $updateStmt->execute(['failed', "HTTP {$httpCode}: {$response}", $task['id']]);

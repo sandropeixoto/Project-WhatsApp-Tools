@@ -485,5 +485,97 @@ if (isset($_GET['action'])) {
         echo $response;
         exit;
     }
+
+    // 10. AI Agents - CRUD e Agendamento
+    if ($action === 'get_agents') {
+        $stmt = $pdo->query("SELECT * FROM uazapi_agents ORDER BY id DESC");
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+    }
+
+    if ($action === 'create_agent') {
+        $instanceName = $input['instance_name'] ?? '';
+        $name = $input['name'] ?? '';
+        $prompt = $input['prompt'] ?? '';
+        $recipient = $input['recipient'] ?? '';
+        $intervalMinutes = (int)($input['interval_minutes'] ?? 60);
+        $restrictedHours = $input['restricted_hours'] ?? '';
+        $requiresReview = isset($input['requires_review']) ? (int)$input['requires_review'] : 1;
+
+        if (empty($instanceName) || empty($name) || empty($prompt) || empty($recipient)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Preencha todos os campos obrigatórios.']);
+            exit;
+        }
+
+        // 1. Criar o Agente no BD
+        $stmt = $pdo->prepare("INSERT INTO uazapi_agents 
+            (instance_name, name, prompt, recipient, interval_minutes, restricted_hours, requires_review, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'active')");
+        $stmt->execute([
+            $instanceName, $name, $prompt, $recipient, $intervalMinutes, $restrictedHours, $requiresReview
+        ]);
+        $agentId = $pdo->lastInsertId();
+
+        // 2. Gerar a primeira mensagem com a IA
+        require_once __DIR__ . '/opencode_api.php';
+        $aiResult = generateOpenCodeMessage($prompt);
+
+        if (!$aiResult['success']) {
+            // Se falhou em gerar a primeira, ainda criamos o agente, mas retornamos aviso.
+            echo json_encode(['success' => true, 'agent_id' => $agentId, 'warning' => 'Agente criado, mas falha ao gerar texto inicial: ' . $aiResult['error']]);
+            exit;
+        }
+
+        // 3. Agendar a primeira mensagem
+        $generatedText = $aiResult['message'];
+        $scheduleStatus = $requiresReview ? 'paused' : 'pending';
+
+        $now = new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
+        // A primeira mensagem é agendada para 1 minuto no futuro p/ dar tempo do usuário ver, ou enviar logo.
+        $now->modify('+1 minute');
+        $scheduledAt = $now->format('Y-m-d H:i:s');
+
+        $apiPayload = [
+            'number' => $recipient,
+            'text' => $generatedText,
+            'agent_id' => $agentId
+        ];
+
+        $stmtSched = $pdo->prepare("INSERT INTO uazapi_schedule (instance_name, task_type, payload, scheduled_at, status) VALUES (?, 'message', ?, ?, ?)");
+        $stmtSched->execute([$instanceName, json_encode($apiPayload), $scheduledAt, $scheduleStatus]);
+
+        echo json_encode(['success' => true, 'agent_id' => $agentId, 'message' => 'Agente criado e primeira mensagem agendada.']);
+        exit;
+    }
+
+    if ($action === 'update_agent_status') {
+        $id = $input['id'] ?? 0;
+        $status = $input['status'] ?? 'active';
+        $stmt = $pdo->prepare("UPDATE uazapi_agents SET status = ? WHERE id = ?");
+        $stmt->execute([$status, $id]);
+        echo json_encode(['success' => $stmt->rowCount() > 0]);
+        exit;
+    }
+
+    if ($action === 'delete_agent') {
+        $id = $input['id'] ?? 0;
+        $stmt = $pdo->prepare("DELETE FROM uazapi_agents WHERE id = ?");
+        $stmt->execute([$id]);
+        echo json_encode(['success' => $stmt->rowCount() > 0]);
+        exit;
+    }
+
+    if ($action === 'update_schedule_status') {
+        // Aproveitar para permitir aprovação de mensagens pausadas na aba de Agendamentos
+        $id = $input['id'] ?? 0;
+        $status = $input['status'] ?? 'pending';
+        $stmt = $pdo->prepare("UPDATE uazapi_schedule SET status = ? WHERE id = ?");
+        $stmt->execute([$status, $id]);
+        echo json_encode(['success' => $stmt->rowCount() > 0]);
+        exit;
+    }
+    }
+?>  }
 }
 ?>

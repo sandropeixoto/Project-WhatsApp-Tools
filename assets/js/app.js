@@ -381,7 +381,7 @@ async function loadSchedules() {
             let statusBadge = s.status === 'pending' ? '<span class="badge bg-warning text-dark">Pendente</span>' :
                 (s.status === 'success' || s.status === 'sent' ? '<span class="badge bg-success">Enviado</span>' :
                     (s.status === 'cancelled' ? '<span class="badge bg-secondary">Cancelado</span>' :
-                        '<span class="badge bg-danger">Falhou</span>'));
+                        (s.status === 'paused' ? '<span class="badge bg-info text-dark">Aguardando Revisão</span>' : '<span class="badge bg-danger">Falhou</span>')));
 
             html += `<tr>
                         <td style="text-align:center;">${s.id}</td>
@@ -390,7 +390,8 @@ async function loadSchedules() {
                         <td>${new Date(s.scheduled_at).toLocaleString()}</td>
                         <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHTML(s.payload)}">${escapeHTML(s.payload)}</td>
                         <td style="text-align:center;">
-                            ${s.status === 'pending' ? `<button class="btn btn-sm btn-outline-danger shadow-sm" title="Excluir Agendamento" onclick="deleteSchedule(${s.id})"><i class="bi bi-trash"></i></button>` : ''}
+                            ${s.status === 'paused' ? `<button class="btn btn-sm btn-success shadow-sm me-1" title="Aprovar Mensagem" onclick="approveSchedule(${s.id})"><i class="bi bi-check2"></i></button>` : ''}
+                            ${s.status === 'pending' || s.status === 'paused' ? `<button class="btn btn-sm btn-outline-danger shadow-sm" title="Excluir Agendamento" onclick="deleteSchedule(${s.id})"><i class="bi bi-trash"></i></button>` : ''}
                         </td>
                     </tr>`;
         });
@@ -692,5 +693,201 @@ async function loadLocalSchedules(type) {
         listDiv.innerHTML = html;
     } catch (e) {
         listDiv.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-danger">Erro ao carregar agendamentos.</td></tr>';
+    }
+}
+
+// --- AGENTES DE IA (OpenCode) ---
+async function loadAgents() {
+    const listDiv = document.getElementById('agents-list');
+    if (!listDiv) return;
+
+    listDiv.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted small"><i class="bi bi-arrow-repeat text-warning fs-3 d-block mb-2 spinner-border border-0"></i>Carregando agentes...</td></tr>';
+
+    try {
+        const res = await fetch('api.php?action=get_agents');
+        const agents = await res.json();
+
+        if (!Array.isArray(agents) || agents.length === 0) {
+            listDiv.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted small">Nenhum agente configurado. Clique em "Novo Agente" para começar.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        agents.forEach(a => {
+            const statusBadge = a.status === 'active'
+                ? '<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1"><i class="bi bi-circle-fill small me-1" style="font-size:8px;"></i>Ativo</span>'
+                : '<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1"><i class="bi bi-pause-circle small me-1"></i>Pausado</span>';
+
+            const reviewBadge = a.requires_review == 1
+                ? '<span class="text-warning fw-bold"><i class="bi bi-shield-check me-1"></i>Sim</span>'
+                : '<span class="text-success"><i class="bi bi-send-check me-1"></i>Não</span>';
+
+            html += `
+                <tr>
+                    <td class="px-3 py-3">
+                        <div class="fw-bold text-dark">${escapeHTML(a.name)}</div>
+                        <div class="text-muted small" style="max-width:250px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHTML(a.prompt)}">
+                            <i class="bi bi-chat-quote me-1"></i>${escapeHTML(a.prompt)}
+                        </div>
+                    </td>
+                    <td class="fw-semibold text-secondary"><i class="bi bi-person me-1"></i>${escapeHTML(a.recipient)}</td>
+                    <td class="text-center">
+                        <span class="badge bg-light text-dark border"><i class="bi bi-clock-history me-1"></i>${a.interval_minutes}m</span>
+                    </td>
+                    <td class="text-center">${reviewBadge}</td>
+                    <td class="text-center">${statusBadge}</td>
+                    <td class="text-end px-3">
+                        <div class="btn-group shadow-sm">
+                            <button class="btn btn-sm btn-light border" title="${a.status === 'active' ? 'Pausar' : 'Ativar'}" onclick="toggleAgentStatus(${a.id}, '${a.status === 'active' ? 'paused' : 'active'}')">
+                                <i class="bi ${a.status === 'active' ? 'bi-pause-fill text-warning' : 'bi-play-fill text-success'}"></i>
+                            </button>
+                            <button class="btn btn-sm btn-light border text-danger" title="Excluir" onclick="deleteAgent(${a.id})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        listDiv.innerHTML = html;
+    } catch (e) {
+        listDiv.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger small"><i class="bi bi-exclamation-triangle me-2"></i>Erro ao carregar agentes.</td></tr>';
+    }
+}
+
+async function createAgent() {
+    const activeInstance = document.getElementById('instance-selector')?.value || activeInstanceName;
+    if (!activeInstance) {
+        alert("Selecione uma instância no topo (Feed) primeiro para poder enviar as mensagens do agente.");
+        return;
+    }
+
+    const name = document.getElementById('agent-name').value.trim();
+    const recipient = document.getElementById('agent-recipient').value.trim();
+    const prompt = document.getElementById('agent-prompt').value.trim();
+    const interval = document.getElementById('agent-interval').value;
+    const restricted = document.getElementById('agent-restricted').value.trim();
+    const review = document.getElementById('agent-review').checked ? 1 : 0;
+
+    const btnSave = document.getElementById('btn-save-agent');
+
+    if (!name || !recipient || !prompt || !interval) {
+        alert("Preencha todos os campos obrigatórios (*).");
+        return;
+    }
+
+    btnSave.disabled = true;
+    btnSave.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Criando... IA gerando texto...';
+
+    try {
+        const payload = {
+            instance_name: activeInstance,
+            name: name,
+            prompt: prompt,
+            recipient: recipient,
+            interval_minutes: interval,
+            restricted_hours: restricted,
+            requires_review: review
+        };
+
+        const res = await fetch('api.php?action=create_agent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            if (data.warning) {
+                alert("Aviso: " + data.warning);
+            } else {
+                // Success
+            }
+
+            // Close modal
+            const modalEl = document.getElementById('newAgentModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) {
+                modal.hide();
+            }
+
+            // Reset form
+            document.getElementById('new-agent-form').reset();
+
+            // Reload list
+            loadAgents();
+
+            if (data.message) {
+                // Show a brief success message (optional, could use a toast)
+            }
+        } else {
+            alert("Erro ao criar agente: " + (data.error || "Falha desconhecida."));
+        }
+    } catch (e) {
+        alert("Erro de comunicação ao criar agente.");
+        console.error(e);
+    } finally {
+        btnSave.disabled = false;
+        btnSave.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Criar Agente';
+    }
+}
+
+async function toggleAgentStatus(id, newStatus) {
+    if (!confirm(`Deseja realmente alterar o status para ${newStatus}?`)) return;
+
+    try {
+        const res = await fetch('api.php?action=update_agent_status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id, status: newStatus })
+        });
+
+        if (res.ok) {
+            loadAgents();
+        } else {
+            alert("Erro ao atualizar status.");
+        }
+    } catch (e) {
+        alert("Erro de comunicação.");
+    }
+}
+
+async function deleteAgent(id) {
+    if (!confirm("Tem certeza que deseja EXCLUIR este agente? As mensagens já agendadas não serão canceladas automaticamente.")) return;
+
+    try {
+        const res = await fetch('api.php?action=delete_agent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id })
+        });
+
+        if (res.ok) {
+            loadAgents();
+        } else {
+            alert("Erro ao deletar agente.");
+        }
+    } catch (e) {
+        alert("Erro de comunicação.");
+    }
+}
+
+async function approveSchedule(id) {
+    if (!confirm("Aprovar e liberar esta mensagem para envio na hora marcada?")) return;
+    try {
+        const res = await fetch('api.php?action=update_schedule_status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id, status: 'pending' })
+        });
+        if (res.ok) {
+            loadSchedules();
+        } else {
+            alert("Erro ao aprovar.");
+        }
+    } catch (e) {
+        alert("Erro na requisição.");
     }
 }
