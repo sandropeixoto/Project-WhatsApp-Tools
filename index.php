@@ -1405,7 +1405,7 @@ if (isset($_GET['action'])) {
                         let senderPhone = isFromMe ? activeInstance : (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
 
                         headerHtml = `
-                            < div class="group-header-block" >
+                            <div class="group-header-block">
                                 <div class="info-line">
                                     <img src="${groupImage}" class="tiny-avatar" alt="G">
                                     <span class="group-name">${escapeHTML(groupName)}</span>
@@ -1413,23 +1413,23 @@ if (isset($_GET['action'])) {
                                 <div class="info-line">
                                     <span class="sender-name">${escapeHTML(senderName)} <span class="sender-phone">(${senderPhone})</span></span>
                                 </div>
-                            </div >
-                            `;
+                            </div>
+                        `;
                     } else if (!isFromMe) {
                         const contactName = msg.senderName || chatInfo.name || "Contato";
                         const contactPhone = chatInfo.phone || (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
-                        headerHtml = `< div style = "margin-bottom: 5px;" > <span class="sender-name">${escapeHTML(contactName)}</span> ${contactPhone ? `<span class="sender-phone">(${contactPhone})</span>` : ''}</div > `;
-                    }
+                        headerHtml = `<div style="margin-bottom: 5px;"><span class="sender-name">${escapeHTML(contactName)}</span> ${contactPhon ? `<span class="sender-phone">(${contactPhone})</span>` : ''}</div>`;
+                   }
 
                     let html = `
-                            < div class="msg-row ${alignClass}" >
-                                <div class="bubble ${alignClass}">
-                                    ${headerHtml}
-                                    ${mediaHtml}
-                                    <div class="msg-text">${escapeHTML(msg.text || '')}</div>
-                                    <div class="time" style="margin-top: 5px;">${time} ${isFromMe ? '✓' : ''}</div>
-                                </div>
-                        </div >
+                        <div class="msg-row ${alignClass}">
+                            <div class="bubble ${alignClass}">
+                                ${headerHtml}
+                                ${mediaHtml}
+                                <div class="msg-text">${escapeHTML(msg.text || '')}</div>
+                                <div class="time" style="margin-top: 5px;">${time} ${isFromMe ? '✓' : ''}</div>
+                            </div>
+                        </div>
                     `;
                     monitorDiv.innerHTML += html;
                 });
