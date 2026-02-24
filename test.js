@@ -168,20 +168,36 @@
 
             const number = document.getElementById('send-number').value.trim();
             const text = document.getElementById('send-text').value.trim();
+            const schedule = document.getElementById('msg-schedule').value;
             const statusDiv = document.getElementById('send-status');
 
-            statusDiv.innerHTML = 'Enviando...';
-            const res = await fetch('index.php?action=send_message', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ instance_name: activeInstance, number, text })
-            });
+            if (!number || !text) return alert("Preencha número e mensagem.");
 
-            if (res.ok) {
-                statusDiv.innerHTML = '<span style="color: green;">✔ Enviado!</span>';
-                document.getElementById('send-text').value = '';
-            } else {
-                statusDiv.innerHTML = '<span style="color: red;">Erro no envio.</span>';
+            const action = schedule === 'now' ? 'send_message' : 'schedule_message';
+            const payload = { instance_name: activeInstance, number, text };
+            if (schedule !== 'now') {
+                payload.schedule = schedule;
+            }
+
+            statusDiv.innerHTML = schedule === 'now' ? 'Enviando...' : 'Agendando...';
+
+            try {
+                const res = await fetch(`index.php?action=${action}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    statusDiv.innerHTML = schedule === 'now' ? '<span style="color: green;">✔ Enviado!</span>' : '<span style="color: green;">✔ Agendado!</span>';
+                    document.getElementById('send-text').value = '';
+                    document.getElementById('msg-schedule').value = 'now';
+                } else {
+                    const data = await res.json().catch(() => ({}));
+                    statusDiv.innerHTML = `<span style="color: red;">Erro: ${data.error || 'Falha no envio'}</span>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = '<span style="color: red;">Erro de conexão.</span>';
             }
         }
 
