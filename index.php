@@ -1857,19 +1857,19 @@ if (isset($_GET['action'])) {
                     } else if (msg.messageType === 'GifMessage') {
                         if (fileURL) {
                             mediaHtml = `<div class="media-wrapper">${saveBtn}<img src="${fileURL}" class="msg-image" alt="GIF" loading="lazy"></div>`;
-                        se tent.JPEGThumbnail) {
-                    mediaHtml = `<div style="position:relative"><img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-image" alt="GIF"><div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.6);color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold">GIF</div></div>`;
-                }
-            }
+                        } else if (content.JPEGThumbnail) {
+                            mediaHtml = `<div style="position:relative"><img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-image" alt="GIF"><div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.6);color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold">GIF</div></div>`;
+                        }
+                    }
 
                     let headerHtml = '';
-            if (msg.isGroup) {
-                const groupImage = chatInfo.imagePreview || 'https://ui-avatars.com/api/?name=G&background=dfe5e7&color=667781';
-                const groupName = chatInfo.name || msg.groupName || "Grupo";
-                let senderName = isFromMe ? "Você" : (msg.senderName || "Desconhecido");
-                let senderPhone = isFromMe ? activeInstance : (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
+                    if (msg.isGroup) {
+                        const groupImage = chatInfo.imagePreview || 'https://ui-avatars.com/api/?name=G&background=dfe5e7&color=667781';
+                        const groupName = chatInfo.name || msg.groupName || "Grupo";
+                        let senderName = isFromMe ? "Você" : (msg.senderName || "Desconhecido");
+                        let senderPhone = isFromMe ? activeInstance : (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
 
-                headerHtml = `
+                        headerHtml = `
                             <div class="group-header-block">
                                 <div class="info-line">
                                     <img src="${groupImage}" class="tiny-avatar" alt="G">
@@ -1880,13 +1880,13 @@ if (isset($_GET['action'])) {
                                 </div>
                             </div>
                         `;
-            } else if (!isFromMe) {
-                const contactName = msg.senderName || chatInfo.name || "Contato";
-                const contactPhone = chatInfo.phone || (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
-                headerHtml = `<div style="margin-bottom: 5px;"><span class="sender-name">${escapeHTML(contactName)}</span> ${contactPhone ? `<span class="sender-phone">(${contactPhone})</span>` : ''}</div>`;
-            }
+                    } else if (!isFromMe) {
+                        const contactName = msg.senderName || chatInfo.name || "Contato";
+                        const contactPhone = chatInfo.phone || (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
+                        headerHtml = `<div style="margin-bottom: 5px;"><span class="sender-name">${escapeHTML(contactName)}</span> ${contactPhone ? `<span class="sender-phone">(${contactPhone})</span>` : ''}</div>`;
+                    }
 
-            let html = `
+                    let html = `
                         <div class="msg-row ${alignClass}">
                             <div class="bubble ${alignClass}">
                                 ${headerHtml}
@@ -1896,10 +1896,10 @@ if (isset($_GET['action'])) {
                             </div>
                         </div>
                     `;
-            monitorDiv.innerHTML += html;
-        });
+                    monitorDiv.innerHTML += html;
+                });
 
-        monitorDiv.scrollTop = monitorDiv.scrollHeight;
+                monitorDiv.scrollTop = monitorDiv.scrollHeight;
 
             } catch (error) { console.error("Erro:", error); }
         }
