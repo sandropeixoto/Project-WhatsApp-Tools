@@ -1,10 +1,10 @@
 <?php
 // db.php - Conexão centralizada MySQL
 
-$DB_HOST = '192.185.214.31';
+$DB_HOST = 'srv24.prodns.com.br';
 $DB_NAME = 'sspeixot_whatsapp';
 $DB_USER = 'sspeixot_whatsapp';
-$DB_PASS = 'Senha@2026';
+$DB_PASS = 'Senh@2026';
 
 try {
     $pdo = new PDO(
