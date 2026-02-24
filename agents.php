@@ -115,14 +115,13 @@ require_once __DIR__ . '/components/sidebar.php';
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(() => {
-            loadAgents();
-        }, 500);
+        loadAgents();
 
         const newAgentModal = document.getElementById('newAgentModal');
         if (newAgentModal) {
             newAgentModal.addEventListener('hidden.bs.modal', function () {
-                document.getElementById('new-ayId('agent-id').value = '';
+                document.getElementById('new-agent-form').reset();
+                document.getElementById('agent-id').value = '';
                 const titleSpan = document.getElementById('agent-modal-title');
                 const btnSpan = document.getElementById('agent-btn-text');
                 if (titleSpan) titleSpan.textContent = 'Criar Novo Agente';

@@ -870,7 +870,7 @@ function openEditAgentModal(id) {
     document.getElementById('agent-modal-title').textContent = 'Editar Agente';
     document.getElementById('agent-btn-text').textContent = 'Salvar Alterações';
 
-    const modal = new bootstrap.Modal(document.getElementById('newAgentModal'));
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('newAgentModal'));
     modal.show();
 }
 
