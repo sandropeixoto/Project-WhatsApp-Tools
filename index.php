@@ -1497,9 +1497,9 @@ if (isset($_GET['action'])) {
                             </div>
                         `;
                     } else if (!isFromMe) {
-                        cont contactName = msg.senderName || chatInfo.name || "Contato";
+                        const contactName = msg.senderName || chatInfo.name || "Contato";
                         const contactPhone = chatInfo.phone || (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
-                        headerHtml = `<div style="margin-bottom: 5px;"><span class="sender-name">${escapeHTML(contactName)}</span> ${contactPhon ? `<span class="sender-phone">(${contactPhone})</span>` : ''}</div>`;
+                        headerHtml = `<div style="margin-bottom: 5px;"><span class="sender-name">${escapeHTML(contactName)}</span> ${contactPhone ? `<span class="sender-phone">(${contactPhone})</span>` : ''}</div>`;
                     }
 
                     let html = `
@@ -1513,16 +1513,16 @@ if (isset($_GET['action'])) {
                         </div>
                     `;
                     monitorDiv.innerHTML += html;
-                    ;
+                });
 
-                    monitorDiv.scrollTop = monitorDiv.scrollHeight;
+                monitorDiv.scrollTop = monitorDiv.scrollHeight;
 
-                } catch (error) { console.error("Erro:", error); }
-            }
+            } catch (error) { console.error("Erro:", error); }
+        }
 
         // Inicia carregando as instâncias que já estão no banco
         loadInstances();
-            setInterval(fetchLogs, 2000);
+        setInterval(fetchLogs, 2000);
     </script>
 </body>
 
