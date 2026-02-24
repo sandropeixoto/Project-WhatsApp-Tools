@@ -116,4 +116,13 @@ require_once __DIR__ . '/components/sidebar.php';
 
     </div>
 </main>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            if (document.getElementById('instance-selector').value) {
+                loadLocalSchedules('status');
+            }
+        }, 500);
+    });
+</script>
 <?php require_once __DIR__ . '/components/footer.php'; ?>

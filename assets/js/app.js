@@ -232,17 +232,26 @@ async function sendStatus() {
 
     if (type === 'text' && !text) return alert("Insira o texto do status.");
 
-    statusDiv.innerHTML = 'Publicando...';
+    const schedule = document.getElementById('status-schedule').value;
+    const action = schedule === 'now' ? 'send_status' : 'schedule_status';
+    if (schedule !== 'now') {
+        payload.schedule = schedule;
+    }
+
+    statusDiv.style.display = 'block';
+    statusDiv.innerHTML = schedule === 'now' ? 'Publicando...' : 'Agendando...';
     try {
-        const res = await fetch('api.php?action=send_status', {
+        const res = await fetch(`api.php?action=${action}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
         if (res.ok) {
-            statusDiv.innerHTML = '<span style="color: green;">✔ Status publicado!</span>';
+            statusDiv.innerHTML = schedule === 'now' ? '<span style="color: green;">✔ Status publicado!</span>' : '<span style="color: green;">✔ Status agendado!</span>';
             document.getElementById('status-text').value = '';
+            document.getElementById('status-schedule').value = 'now';
+            if (schedule !== 'now') loadLocalSchedules('status');
         } else {
             const err = await res.json();
             statusDiv.innerHTML = `<span style="color: red;">Erro: ${err.error || 'Falha no envio'}</span>`;
