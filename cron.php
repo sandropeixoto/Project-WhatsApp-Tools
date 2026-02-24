@@ -6,18 +6,100 @@ require_once __DIR__ . '/db.php';
 
 $API_BASE_URL = "https://sspeixoto.uazapi.com";
 
-// Buscar agendamentos pendentes que já devem ser executados
-$stmt = $pdo->prepare("SELECT s.*, i.token 
-    FROM uazapi_schedule s 
-    JOIN uazapi_instances i ON s.instance_name = i.name 
-    WHERE s.status = 'pending' AND s.scheduled_at <= NOW() 
-    ORDER BY s.scheduled_at ASC 
-    LIMIT 10");
+// =============================================
+// FASE 1: Gerar mensagens para agentes ativos sem agendamento pendente
+// =============================================
+$jsonPath = '$.agent_id';
+$sqlOrphan = "SELECT a.* FROM uazapi_agents a
+    WHERE a.status = 'active'
+    AND NOT EXISTS (
+        SELECT 1 FROM uazapi_schedule s
+        WHERE CAST(JSON_UNQUOTE(JSON_EXTRACT(s.payload, ?)) AS UNSIGNED) = a.id
+        AND s.status IN ('pending', 'paused')
+    )";
+$stmtOrphanAgents = $pdo->prepare($sqlOrphan);
+$stmtOrphanAgents->execute([$jsonPath]);
+$orphanAgents = $stmtOrphanAgents->fetchAll(PDO::FETCH_ASSOC);
+
+if (!empty($orphanAgents)) {
+    require_once __DIR__ . '/opencode_api.php';
+
+    foreach ($orphanAgents as $agent) {
+        $agentId = $agent['id'];
+
+        $aiResult = generateOpenCodeMessage($agent['prompt']);
+        if (!$aiResult['success']) {
+            echo date('Y-m-d H:i:s') . " [ERROR] Agent #$agentId falhou ao gerar msg: " . $aiResult['error'] . "\n";
+            continue;
+        }
+
+        $nextText = $aiResult['message'];
+        $nextStatus = $agent['requires_review'] ? 'paused' : 'pending';
+
+        $interval = (int)$agent['interval_minutes'];
+        $baseTime = !empty($agent['last_exec_at'])
+            ? new DateTime($agent['last_exec_at'], new DateTimeZone('America/Sao_Paulo'))
+            : new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
+
+        $nextTime = clone $baseTime;
+        $nextTime->modify("+$interval minutes");
+
+        $now = new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
+        if ($nextTime < $now) {
+            $nextTime = clone $now;
+            $nextTime->modify('+1 minute');
+        }
+
+        if (!empty($agent['restricted_hours']) && strpos($agent['restricted_hours'], '-') !== false) {
+            list($rStart, $rEnd) = explode('-', $agent['restricted_hours']);
+            $currentHourMin = $nextTime->format('H:i');
+            $tNow = strtotime($currentHourMin);
+            $tStart = strtotime(trim($rStart));
+            $tEnd = strtotime(trim($rEnd));
+
+            $isRestricted = false;
+            if ($tStart > $tEnd) {
+                if ($tNow >= $tStart || $tNow <= $tEnd)
+                    $isRestricted = true;
+            }
+            else {
+                if ($tNow >= $tStart && $tNow <= $tEnd)
+                    $isRestricted = true;
+            }
+
+            if ($isRestricted) {
+                $nextTime = new DateTime($nextTime->format('Y-m-d') . ' ' . trim($rEnd), new DateTimeZone('America/Sao_Paulo'));
+                if ($tStart > $tEnd && $tNow >= $tStart) {
+                    $nextTime->modify('+1 day');
+                }
+                $nextTime->modify('+1 minute');
+            }
+        }
+
+        $scheduledAt = $nextTime->format('Y-m-d H:i:s');
+        $nextPayload = [
+            'number' => $agent['recipient'],
+            'text' => $nextText,
+            'agent_id' => $agent['id']
+        ];
+
+        $stmtSched = $pdo->prepare("INSERT INTO uazapi_schedule (instance_name, task_type, payload, scheduled_at, status) VALUES (?, 'message', ?, ?, ?)");
+        $stmtSched->execute([$agent['instance_name'], json_encode($nextPayload), $scheduledAt, $nextStatus]);
+        $pdo->prepare("UPDATE uazapi_agents SET last_exec_at = NOW() WHERE id = ?")->execute([$agentId]);
+
+        echo date('Y-m-d H:i:s') . " [AGENT] Agent #$agentId (" . $agent['name'] . ") — nova msg agendada para: $scheduledAt (status: $nextStatus).\n";
+    }
+}
+
+// =============================================
+// FASE 2: Processar agendamentos pendentes
+// =============================================
+$stmt = $pdo->prepare("SELECT s.*, i.token FROM uazapi_schedule s JOIN uazapi_instances i ON s.instance_name = i.name WHERE s.status = 'pending' AND s.scheduled_at <= NOW() ORDER BY s.scheduled_at ASC LIMIT 10");
 $stmt->execute();
 $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 if (empty($tasks)) {
-    exit; // Nada para processar
+    exit;
 }
 
 $updateStmt = $pdo->prepare("UPDATE uazapi_schedule SET status = ?, result = ?, executed_at = NOW() WHERE id = ?");
@@ -26,11 +108,10 @@ foreach ($tasks as $task) {
     $payload = json_decode($task['payload'], true);
 
     if (!$payload || empty($task['token'])) {
-        $updateStmt->execute(['failed', 'Payload inválido ou token ausente', $task['id']]);
+        $updateStmt->execute(['failed', 'Payload invalido ou token ausente', $task['id']]);
         continue;
     }
 
-    // Determinar o endpoint com base no task_type
     $endpoint = '';
     if ($task['task_type'] === 'status') {
         $endpoint = '/send/status';
@@ -39,12 +120,11 @@ foreach ($tasks as $task) {
         $endpoint = '/send/text';
     }
     else {
-        $updateStmt->execute(['failed', 'Tipo de tarefa desconhecido: ' . $task['task_type'], $task['id']]);
+        $updateStmt->execute(['failed', 'Tipo desconhecido: ' . $task['task_type'], $task['id']]);
         continue;
     }
 
-    // Enviar via API
-    $ch = curl_init("{$API_BASE_URL}{$endpoint}");
+    $ch = curl_init($API_BASE_URL . $endpoint);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
@@ -60,9 +140,9 @@ foreach ($tasks as $task) {
 
     if ($httpCode >= 200 && $httpCode < 300) {
         $updateStmt->execute(['sent', $response, $task['id']]);
-        echo date('Y-m-d H:i:s') . " [OK] Task #{$task['id']} ({$task['task_type']}) enviado.\n";
+        echo date('Y-m-d H:i:s') . " [OK] Task #" . $task['id'] . " (" . $task['task_type'] . ") enviado.\n";
 
-        // Verificar se é uma mensagem de um AI Agent para gerar a próxima
+        // Se for mensagem de AI Agent, gerar a proxima
         if (isset($payload['agent_id'])) {
             require_once __DIR__ . '/opencode_api.php';
             $agentId = $payload['agent_id'];
@@ -77,45 +157,37 @@ foreach ($tasks as $task) {
                     $nextText = $aiResult['message'];
                     $nextStatus = $agent['requires_review'] ? 'paused' : 'pending';
 
-                    // Calcular próximo horário baseado no interval_minutes
                     $interval = (int)$agent['interval_minutes'];
-                    $now = new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
-                    $now->modify("+{$interval} minutes");
+                    $nextDt = new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
+                    $nextDt->modify("+$interval minutes");
 
-                    // Lógica de restricted_hours (ex: "22:00-08:00")
                     if (!empty($agent['restricted_hours']) && strpos($agent['restricted_hours'], '-') !== false) {
-                        list($start, $end) = explode('-', $agent['restricted_hours']);
-                        $currentHourMin = $now->format('H:i');
+                        list($rStart, $rEnd) = explode('-', $agent['restricted_hours']);
+                        $curHM = $nextDt->format('H:i');
+                        $tNow2 = strtotime($curHM);
+                        $tStart2 = strtotime(trim($rStart));
+                        $tEnd2 = strtotime(trim($rEnd));
 
-                        $startDt = DateTime::createFromFormat('H:i', trim($start), new DateTimeZone('America/Sao_Paulo'));
-                        $endDt = DateTime::createFromFormat('H:i', trim($end), new DateTimeZone('America/Sao_Paulo'));
-                        if ($startDt && $endDt) {
-                            $timeNow = strtotime($currentHourMin);
-                            $timeStart = strtotime(trim($start));
-                            $timeEnd = strtotime(trim($end));
+                        $isRestricted2 = false;
+                        if ($tStart2 > $tEnd2) {
+                            if ($tNow2 >= $tStart2 || $tNow2 <= $tEnd2)
+                                $isRestricted2 = true;
+                        }
+                        else {
+                            if ($tNow2 >= $tStart2 && $tNow2 <= $tEnd2)
+                                $isRestricted2 = true;
+                        }
 
-                            $isRestricted = false;
-                            if ($timeStart > $timeEnd) { // Ex: 22:00-08:00
-                                if ($timeNow >= $timeStart || $timeNow <= $timeEnd)
-                                    $isRestricted = true;
+                        if ($isRestricted2) {
+                            $nextDt = new DateTime($nextDt->format('Y-m-d') . ' ' . trim($rEnd), new DateTimeZone('America/Sao_Paulo'));
+                            if ($tStart2 > $tEnd2 && $tNow2 >= $tStart2) {
+                                $nextDt->modify('+1 day');
                             }
-                            else { // Ex: 08:00-12:00
-                                if ($timeNow >= $timeStart && $timeNow <= $timeEnd)
-                                    $isRestricted = true;
-                            }
-
-                            if ($isRestricted) {
-                                // Redefine o horário para 1 minuto após o fim da restrição
-                                $now = new DateTime($now->format('Y-m-d') . ' ' . trim($end), new DateTimeZone('America/Sao_Paulo'));
-                                if ($timeStart > $timeEnd && $timeNow >= $timeStart) {
-                                    $now->modify('+1 day');
-                                }
-                                $now->modify('+1 minute');
-                            }
+                            $nextDt->modify('+1 minute');
                         }
                     }
 
-                    $scheduledAt = $now->format('Y-m-d H:i:s');
+                    $scheduledAt = $nextDt->format('Y-m-d H:i:s');
                     $nextPayload = [
                         'number' => $agent['recipient'],
                         'text' => $nextText,
@@ -124,20 +196,19 @@ foreach ($tasks as $task) {
 
                     $stmtSched = $pdo->prepare("INSERT INTO uazapi_schedule (instance_name, task_type, payload, scheduled_at, status) VALUES (?, 'message', ?, ?, ?)");
                     $stmtSched->execute([$agent['instance_name'], json_encode($nextPayload), $scheduledAt, $nextStatus]);
-
                     $pdo->prepare("UPDATE uazapi_agents SET last_exec_at = NOW() WHERE id = ?")->execute([$agentId]);
 
-                    echo date('Y-m-d H:i:s') . " [OK] Agent #{$agentId} gerou próxima msg agendada para: {$scheduledAt}.\n";
+                    echo date('Y-m-d H:i:s') . " [OK] Agent #$agentId proxima msg agendada para: $scheduledAt.\n";
                 }
                 else {
-                    echo date('Y-m-d H:i:s') . " [ERROR] Agent #{$agentId} falhou ao gerar msg: {$aiResult['error']}.\n";
+                    echo date('Y-m-d H:i:s') . " [ERROR] Agent #$agentId falhou ao gerar msg: " . $aiResult['error'] . ".\n";
                 }
             }
         }
     }
     else {
-        $updateStmt->execute(['failed', "HTTP {$httpCode}: {$response}", $task['id']]);
-        echo date('Y-m-d H:i:s') . " [FAIL] Task #{$task['id']} HTTP {$httpCode}.\n";
+        $updateStmt->execute(['failed', "HTTP $httpCode: $response", $task['id']]);
+        echo date('Y-m-d H:i:s') . " [FAIL] Task #" . $task['id'] . " HTTP $httpCode.\n";
     }
 }
 ?>
