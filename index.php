@@ -283,6 +283,52 @@ if (isset($_GET['action'])) {
         }
         exit;
     }
+
+    // 9. Download de mídia sob demanda via API (para stickers/áudio sem fileURL)
+    if ($action === 'download_media_api') {
+        $instanceName = $input['instance_name'] ?? '';
+        $messageId = $input['message_id'] ?? '';
+
+        if (empty($instanceName) || empty($messageId)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'instance_name e message_id são obrigatórios.']);
+            exit;
+        }
+
+        $stmt = $pdo->prepare("SELECT token FROM uazapi_instances WHERE name = ?");
+        $stmt->execute([$instanceName]);
+        $instance = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$instance) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Token da instância não encontrado.']);
+            exit;
+        }
+
+        $dlPayload = json_encode([
+            'id' => $messageId,
+            'return_link' => true,
+            'return_base64' => false
+        ]);
+
+        $ch = curl_init("{$API_BASE_URL}/message/download");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $dlPayload);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'token: ' . $instance['token']
+        ]);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        http_response_code($httpCode);
+        echo $response;
+        exit;
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -1307,6 +1353,41 @@ if (isset($_GET['action'])) {
             }
         }
 
+        // --- DOWNLOAD SOB DEMANDA (stickers/áudios sem fileURL) ---
+        async function downloadAndShowMedia(el, messageId, mediaType) {
+            const activeInstance = document.getElementById('instance-selector').value;
+            if (!activeInstance || !messageId) return;
+
+            el.innerHTML = '<span>⏳</span>Carregando...';
+            el.style.cursor = 'default';
+            el.onclick = null;
+
+            try {
+                const res = await fetch('index.php?action=download_media_api', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ instance_name: activeInstance, message_id: messageId })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.fileURL) {
+                    if (mediaType === 'sticker') {
+                        el.outerHTML = `<div class="media-wrapper"><img src="${data.fileURL}" class="msg-sticker" alt="Sticker"></div>`;
+                    } else if (mediaType === 'audio') {
+                        el.outerHTML = `<div style="display:flex;align-items:center;gap:6px;"><audio class="msg-audio" controls preload="metadata" style="flex:1"><source src="${data.fileURL}" type="audio/mpeg"><source src="${data.fileURL}" type="${data.mimetype || 'audio/ogg'}">Áudio</audio></div>`;
+                    } else {
+                        el.outerHTML = `<a href="${data.fileURL}" target="_blank">📥 Baixar mídia</a>`;
+                    }
+                } else {
+                    el.innerHTML = '<span>❌</span>Falha ao carregar';
+                    setTimeout(() => { el.innerHTML = '<span>🔄</span>Tentar novamente'; el.style.cursor = 'pointer'; el.onclick = () => downloadAndShowMedia(el, messageId, mediaType); }, 3000);
+                }
+            } catch (e) {
+                el.innerHTML = '<span>❌</span>Erro de conexão';
+                setTimeout(() => { el.innerHTML = '<span>🔄</span>Tentar novamente'; el.style.cursor = 'pointer'; el.onclick = () => downloadAndShowMedia(el, messageId, mediaType); }, 3000);
+            }
+        }
+
         // --- RENDERIZAÇÃO DA CONVERSA ---
         async function fetchLogs() {
             const activeInstance = document.getElementById('instance-selector').value;
@@ -1360,10 +1441,9 @@ if (isset($_GET['action'])) {
                     } else if (msg.messageType === 'StickerMessage') {
                         if (fileURL) {
                             mediaHtml = `<div class="media-wrapper">${saveBtn}<img src="${fileURL}" class="msg-sticker" alt="Sticker"></div>`;
-                        } else if (content.JPEGThumbnail) {
-                            mediaHtml = `<img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-sticker" alt="Sticker">`;
                         } else {
-                            mediaHtml = `<div class="media-placeholder"><span>🎨</span>Sticker</div>`;
+                            const msgId = msg.Id || msg.id || msg.messageid || '';
+                            mediaHtml = `<div class="media-placeholder" style="cursor:pointer" onclick="downloadAndShowMedia(this, '${msgId}', 'sticker')" title="Clique para carregar sticker"><span>🎨</span>Clique para ver sticker</div>`;
                         }
                     } else if (msg.messageType === 'VideoMessage') {
                         if (fileURL) {
@@ -1375,9 +1455,10 @@ if (isset($_GET['action'])) {
                         }
                     } else if (msg.messageType === 'AudioMessage' || msg.messageType === 'PTTMessage') {
                         if (fileURL) {
-                            mediaHtml = `<div style="display:flex;align-items:center;gap:6px;"><audio class="msg-audio" controls preload="metadata" style="flex:1"><source src="${fileURL}" type="${mimetype || 'audio/ogg'}">Áudio</audio><button class="btn-save-inline" onclick="saveMedia(this)" ${saveData} ${saveName} ${saveType} title="Salvar no servidor">💾</button></div>`;
+                            mediaHtml = `<div style="display:flex;align-items:center;gap:6px;"><audio class="msg-audio" controls preload="metadata" style="flex:1"><source src="${fileURL}" type="audio/mpeg"><source src="${fileURL}" type="${mimetype || 'audio/ogg'}">Áudio</audio><button class="btn-save-inline" onclick="saveMedia(this)" ${saveData} ${saveName} ${saveType} title="Salvar no servidor">💾</button></div>`;
                         } else {
-                            mediaHtml = `<div class="media-placeholder"><span>🎵</span>Áudio${msg.messageType === 'PTTMessage' ? ' (voz)' : ''}</div>`;
+                            const msgId = msg.Id || msg.id || msg.messageid || '';
+                            mediaHtml = `<div class="media-placeholder" style="cursor:pointer" onclick="downloadAndShowMedia(this, '${msgId}', 'audio')" title="Clique para carregar áudio"><span>🎵</span>Clique para ouvir${msg.messageType === 'PTTMessage' ? ' (voz)' : ''}</div>`;
                         }
                     } else if (msg.messageType === 'DocumentMessage') {
                         const fileName = (typeof content === 'object' ? content.FileName : '') || 'documento';
@@ -1416,10 +1497,10 @@ if (isset($_GET['action'])) {
                             </div>
                         `;
                     } else if (!isFromMe) {
-                        const contactName = msg.senderName || chatInfo.name || "Contato";
+                        cont contactName = msg.senderName || chatInfo.name || "Contato";
                         const contactPhone = chatInfo.phone || (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
                         headerHtml = `<div style="margin-bottom: 5px;"><span class="sender-name">${escapeHTML(contactName)}</span> ${contactPhon ? `<span class="sender-phone">(${contactPhone})</span>` : ''}</div>`;
-                   }
+                    }
 
                     let html = `
                         <div class="msg-row ${alignClass}">
@@ -1432,16 +1513,16 @@ if (isset($_GET['action'])) {
                         </div>
                     `;
                     monitorDiv.innerHTML += html;
-                });
+                    ;
 
-                monitorDiv.scrollTop = monitorDiv.scrollHeight;
+                    monitorDiv.scrollTop = monitorDiv.scrollHeight;
 
-            } catch (error) { console.error("Erro:", error); }
-        }
+                } catch (error) { console.error("Erro:", error); }
+            }
 
         // Inicia carregando as instâncias que já estão no banco
         loadInstances();
-        setInterval(fetchLogs, 2000);
+            setInterval(fetchLogs, 2000);
     </script>
 </body>
 
