@@ -488,7 +488,14 @@ if (isset($_GET['action'])) {
 
     // 10. AI Agents - CRUD e Agendamento
     if ($action === 'get_agents') {
-        $stmt = $pdo->query("SELECT * FROM uazapi_agents ORDER BY id DESC");
+        $name = $_GET['name'] ?? '';
+        if (!empty($name)) {
+            $stmt = $pdo->prepare("SELECT * FROM uazapi_agents WHERE instance_name = ? ORDER BY id DESC");
+            $stmt->execute([$name]);
+        }
+        else {
+            $stmt = $pdo->query("SELECT * FROM uazapi_agents ORDER BY id DESC");
+        }
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit;
     }

@@ -716,7 +716,8 @@ async function loadAgents() {
     listDiv.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted small"><i class="bi bi-arrow-repeat text-warning fs-3 d-block mb-2 spinner-border border-0"></i>Carregando agentes...</td></tr>';
 
     try {
-        const res = await fetch('api.php?action=get_agents');
+        const activeInstance = document.getElementById('instance-selector')?.value || activeInstanceName || '';
+        const res = await fetch('api.php?action=get_agents&name=' + encodeURIComponent(activeInstance));
         const agents = await res.json();
         loadedAgents = agents;
 
