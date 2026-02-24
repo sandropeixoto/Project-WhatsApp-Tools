@@ -3,6 +3,13 @@
 
 require_once __DIR__ . '/db.php';
 
+if (!isset($_GET['instance']) || empty(trim($_GET['instance']))) {
+    header('Location: instances.php');
+    exit;
+}
+
+$activeInstanceName = trim($_GET['instance']);
+
 // --- CONFIGURAÇÕES DA API ---
 $API_BASE_URL = "https://sspeixoto.uazapi.com";
 $ADMIN_TOKEN = "4cFCOnaDoBvSuhytYRRT5RaTRNSxP0ornjJDv9TdLvxmmaHDFO";
