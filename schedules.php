@@ -23,10 +23,21 @@ require_once __DIR__ . '/components/sidebar.php';
                     </tr>
                 </thead>
                 <tbody id="schedules-list">
-                    <tr><td colspan="5" class="text-center py-4 text-muted small">Carregando agendamentos...</td></tr>
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted small">Carregando agendamentos...</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
     </div>
 </main>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            if (activeInstanceName) {
+                loadSchedules();
+            }
+        }, 500);
+    });
+</script>
 <?php require_once __DIR__ . '/components/footer.php'; ?>

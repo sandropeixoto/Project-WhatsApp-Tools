@@ -39,7 +39,7 @@ require_once __DIR__ . '/components/sidebar.php';
                     </div>
                 </div>
 
-                <div id="msg-status" class="mb-3 small fw-semibold" style="display:none;"></div>
+                <div id="send-status" class="mb-3 small fw-semibold"></div>
 
                 <div class="d-grid pt-2">
                     <button class="btn btn-success btn-lg fw-semibold" onclick="sendMessage()">
@@ -81,4 +81,17 @@ require_once __DIR__ . '/components/sidebar.php';
 
     </div>
 </main>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // As a fallback/delayed execution after Vue/jQuery if present, but since it's vanilla:
+        setTimeout(() => {
+            if (activeInstanceName) {
+                loadLocalSchedules('message');
+            } else {
+                // If the app.js initFeed hasn't set it yet, the UI might show 'Select an instance'
+                // app.js has its own hook, we can let it trigger or add a listener
+            }
+        }, 500);
+    });
+</script>
 <?php require_once __DIR__ . '/components/footer.php'; ?>

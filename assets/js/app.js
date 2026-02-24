@@ -367,7 +367,7 @@ async function loadSchedules() {
 
         schedules.forEach(s => {
             let statusBadge = s.status === 'pending' ? '<span class="badge bg-warning text-dark">Pendente</span>' :
-                (s.status === 'success' ? '<span class="badge bg-success">Enviado</span>' :
+                (s.status === 'success' || s.status === 'sent' ? '<span class="badge bg-success">Enviado</span>' :
                     (s.status === 'cancelled' ? '<span class="badge bg-secondary">Cancelado</span>' :
                         '<span class="badge bg-danger">Falhou</span>'));
 
@@ -658,7 +658,7 @@ async function loadLocalSchedules(type) {
         let html = '';
         filtered.forEach(s => {
             let statusBadge = s.status === 'pending' ? '<span class="badge bg-warning text-dark">Pendente</span>' :
-                (s.status === 'success' ? '<span class="badge bg-success">Enviado</span>' :
+                (s.status === 'success' || s.status === 'sent' ? '<span class="badge bg-success">Enviado</span>' :
                     (s.status === 'cancelled' ? '<span class="badge bg-secondary">Cancelado</span>' : '<span class="badge bg-danger">Falhou</span>'));
 
             let destOrType = 'N/A';

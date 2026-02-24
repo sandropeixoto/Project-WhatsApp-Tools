@@ -14,4 +14,13 @@ require_once __DIR__ . '/components/sidebar.php';
         <div id="groups-list" class="row g-3"></div>
     </div>
 </main>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            if (activeInstanceName) {
+                loadGroups();
+            }
+        }, 500);
+    });
+</script>
 <?php require_once __DIR__ . '/components/footer.php'; ?>
