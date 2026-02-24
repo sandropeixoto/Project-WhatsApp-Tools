@@ -3,14 +3,12 @@
 
 require_once __DIR__ . '/db.php';
 
-$activeInstanceName = '';
-if (!isset($_GET['action'])) {
-    if (!isset($_GET['instance']) || empty(trim($_GET['instance']))) {
-        header('Location: instances.php');
-        exit;
-    }
-    $activeInstanceName = trim($_GET['instance']);
+if (!isset($_GET['instance']) || empty(trim($_GET['instance']))) {
+    header('Location: instances.php');
+    exit;
 }
+
+$activeInstanceName = trim($_GET['instance']);
 
 // --- CONFIGURAÇÕES DA API ---
 $API_BASE_URL = "https://sspeixoto.uazapi.com";
@@ -498,48 +496,135 @@ if (isset($_GET['action'])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="pt-BR" data-bs-theme="light">
+<html lang="pt-BR">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Tools — Feed</title>
-    <!-- Bootstrap 5 CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Painel Multi-Instâncias uazapiGO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --wa-primary: #00a884;
-            --wa-dark: #075e54;
-            --wa-teal: #128c7e;
-            --wa-bg: #f0f2f5;
-            --wa-chat-bg: #efeae2;
-        }
-
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--wa-bg);
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #d1d7db;
+            margin: 0;
+            display: flex;
+            justify-content: center;
             height: 100vh;
             overflow: hidden;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 1000px;
+            background: #efeae2;
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .header {
+            background-color: #f0f2f5;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #d1d7db;
+            z-index: 10;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .header img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 15px;
+        }
+
+        .header-info h1 {
+            margin: 0;
+            font-size: 16px;
+            color: #111b21;
+        }
+
+        .instance-selector {
+            margin-top: 5px;
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 13px;
+            background: white;
+            outline: none;
+            min-width: 200px;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 8px;
+        }
+
+        .tools-btn {
+            background-color: #00a884;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .groups-btn {
+            background-color: #34B7F1;
+        }
+
+        .groups-btn:hover {
+            background-color: #229dd1;
+        }
+
+        /* --- TABS: Chat vs Grupos --- */
+        .tab-bar {
+            display: flex;
+            background: #f0f2f5;
+            border-bottom: 1px solid #d1d7db;
+        }
+
+        .tab-bar button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: #667781;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-bar button.active {
+            color: #00a884;
+            border-bottom-color: #00a884;
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
             display: flex;
             flex-direction: column;
         }
 
-        .navbar-wa {
-            background: var(--wa-primary);
-            color: white;
-            z-index: 1040;
-        }
-
-        /* Chat Wrapper Background */
-        .chat-bg {
-            background-color: var(--wa-chat-bg);
-            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-            background-repeat: repeat;
-        }
-
-        /* Keep existing chat bubble CSS */
+        /* --- Chat --- */
         .chat-container {
             flex: 1;
             padding: 20px;
@@ -785,19 +870,53 @@ if (isset($_GET['action'])) {
             float: right;
         }
 
-        /* Groups styling compatibility */
+        /* --- Grupos --- */
+        .groups-container {
+            padding: 15px;
+        }
+
+        .groups-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .groups-header h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #111b21;
+        }
+
+        .btn-sync-groups {
+            background: #00a884;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .btn-sync-groups:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         .groups-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 13px;
+            font-size: 12px;
             background: white;
             border-radius: 8px;
             overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
         }
 
         .groups-table th {
-            background: var(--wa-bg);
-            padding: 12px;
+            background: #f0f2f5;
+            padding: 10px 8px;
             text-align: left;
             font-weight: 600;
             color: #667781;
@@ -805,10 +924,10 @@ if (isset($_GET['action'])) {
         }
 
         .groups-table td {
-            padding: 12px;
+            padding: 8px;
             border-bottom: 1px solid #f0f2f5;
             color: #111b21;
-            vertical-align: middle;
+            vertical-align: top;
         }
 
         .groups-table tr:hover {
@@ -817,265 +936,536 @@ if (isset($_GET['action'])) {
 
         .jid-cell {
             font-family: monospace;
-            font-size: 12px;
-            color: var(--wa-primary);
+            font-size: 11px;
+            color: #00a884;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
         }
 
         .jid-cell:hover {
             text-decoration: underline;
         }
 
-        .tab-content {
-            display: none;
-            flex: 1;
-            overflow-y: auto;
+        .copy-icon {
+            font-size: 10px;
+            opacity: 0.5;
         }
 
-        .tab-content.active {
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .badge-yes {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .badge-no {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        /* --- Sidebar --- */
+        .sidebar {
+            position: absolute;
+            top: 0;
+            right: -380px;
+            width: 370px;
+            height: 100%;
+            background: #f0f2f5;
+            box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+            transition: right 0.3s ease;
+            z-index: 20;
             display: flex;
             flex-direction: column;
         }
 
-        .custom-nav-tabs .nav-link {
-            color: #6c757d;
+        .sidebar.open {
+            right: 0;
+        }
+
+        .sidebar-header {
+            background: #00a884;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-header h2 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .close-btn {
+            cursor: pointer;
+            font-size: 24px;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .tool-box {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .tool-box h3 {
+            margin: 0 0 15px 0;
+            font-size: 14px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+
+        .tool-box label {
+            font-size: 12px;
+            color: #667781;
+            margin-bottom: 4px;
+            display: block;
+            font-weight: 600;
+        }
+
+        .tool-box input,
+        .tool-box textarea,
+        .tool-box select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            font-size: 13px;
+        }
+
+        .btn-action {
+            width: 100%;
+            background: #00a884;
+            color: white;
             border: none;
-            border-bottom: 3px solid transparent;
-            font-weight: 500;
-            padding: 12px 20px;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
         }
 
-        .custom-nav-tabs .nav-link:hover {
-            border-color: transparent;
-            color: var(--wa-primary);
+        .btn-sync {
+            background: #34B7F1;
+            margin-bottom: 15px;
         }
 
-        .custom-nav-tabs .nav-link.active {
-            color: var(--wa-primary);
-            border-color: var(--wa-primary);
-            background: transparent;
+        .btn-sync:hover {
+            background: #229dd1;
+        }
+
+        .status-msg {
+            font-size: 12px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* === TELA DE SELEÇÃO DE INSTÂNCIAS === */
+        .screen-select {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #f0f2f5;
+        }
+
+        .screen-select-header {
+            background: #00a884;
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .screen-select-header h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .screen-select-header .subtitle {
+            font-size: 12px;
+            opacity: 0.85;
+            margin-top: 2px;
+        }
+
+        .btn-sync-main {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn-sync-main:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-sync-main:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        .instances-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            padding: 24px;
+            flex: 1;
+            overflow-y: auto;
+            align-content: start;
+        }
+
+        .instance-card {
+            background: white;
+            border-radius: 12px;
+            padding: 18px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+            border: 2px solid transparent;
+            display: flex;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .instance-card:hover {
+            border-color: #00a884;
+            box-shadow: 0 4px 12px rgba(0, 168, 132, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .instance-card .card-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        .instance-card .card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .instance-card .card-name {
+            font-weight: 700;
+            font-size: 14px;
+            color: #111;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .instance-card .card-profile {
+            font-size: 12px;
+            color: #667781;
+            margin-top: 2px;
+        }
+
+        .instance-card .card-phone {
+            font-size: 11px;
+            color: #999;
+            margin-top: 1px;
+        }
+
+        .instance-card .card-badges {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            font-size: 10px;
+            padding: 1px 7px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .badge-connected {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .badge-disconnected {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .badge-business {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        /* === TOP BAR DO FEED === */
+        .feed-topbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #00a884;
+            padding: 10px 16px;
+            color: white;
+        }
+
+        .feed-topbar .topbar-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .feed-topbar .topbar-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .feed-topbar .topbar-name {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .feed-topbar .topbar-phone {
+            font-size: 11px;
+            opacity: 0.85;
+        }
+
+        .btn-switch {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn-switch:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
     </style>
 </head>
 
 <body>
 
-    <!-- Top Navbar -->
-    <nav class="navbar navbar-wa shadow-sm px-3 py-2 flex-shrink-0">
-        <div class="d-flex align-items-center w-100 justify-content-between">
-            <div class="d-flex align-items-center">
-                <img id="topbar-avatar" src="https://ui-avatars.com/api/?name=WA&background=128c7e&color=fff"
-                    class="rounded-circle border border-2 border-white border-opacity-50 me-3"
-                    style="width: 44px; height: 44px; object-fit: cover;" alt="">
-                <div>
-                    <div class="fw-bold lh-1 mb-1 fs-6" id="topbar-name">Carregando...</div>
-                    <div class="small text-white-50 lh-1" id="topbar-phone"></div>
-                </div>
+    <!-- ========== TELA 1: SELEÇÃO DE INSTÂNCIA ========== -->
+    <div id="screen-select" class="screen-select">
+        <div class="screen-select-header">
+            <div>
+                <h1>📱 WhatsApp Tools</h1>
+                <div class="subtitle">Selecione uma instância para gerenciar</div>
             </div>
-            <div class="d-flex gap-2">
-                <button class="btn btn-outline-light btn-sm fw-semibold px-3" onclick="switchInstance()">
-                    <i class="bi bi-arrow-return-left me-1"></i> Trocar
-                </button>
-                <button class="btn btn-light btn-sm fw-semibold px-3 text-success shadow-sm" type="button"
-                    data-bs-toggle="offcanvas" data-bs-target="#sidebar">
-                    <i class="bi bi-tools me-1"></i> Ferramentas
-                </button>
-            </div>
+            <button class="btn-sync-main" id="btn-sync-select" onclick="syncAndRefresh()">🔄 Atualizar
+                Instâncias</button>
         </div>
-    </nav>
+        <div class="instances-grid" id="instances-grid">
+            <div style="text-align:center;color:#999;grid-column:1/-1;padding:40px;">Carregando instâncias...</div>
+        </div>
+    </div>
 
-    <!-- Hidden selector for backward compat -->
-    <select id="instance-selector" class="d-none"></select>
+    <!-- ========== TELA 2: FEED DA INSTÂNCIA ========== -->
+    <div id="screen-feed" class="hidden">
 
-    <!-- Main Content -->
-    <main class="d-flex flex-column flex-grow-1 overflow-hidden" style="background: white;">
-
-        <!-- Default Bootstrap Nav Tabs styled nicely -->
-        <ul class="nav custom-nav-tabs tab-bar border-bottom w-100" style="background: var(--wa-bg);">
-            <li class="nav-item flex-fill text-center">
-                <button class="nav-link w-100 active" onclick="switchTab('chat', this)">
-                    <i class="bi bi-chat-dots me-2"></i> Conversas
-                </button>
-            </li>
-            <li class="nav-item flex-fill text-center">
-                <button class="nav-link w-100" onclick="switchTab('groups', this)">
-                    <i class="bi bi-people me-2"></i> Grupos
-                </button>
-            </li>
-        </ul>
-
-        <!-- Tab: Conversas -->
-        <div class="tab-content active chat-bg" id="tab-chat">
-            <div class="chat-container w-100 mx-auto" id="monitor" style="max-width: 900px;">
-                <div class="text-center text-muted my-4 small">Carregando mensagens...</div>
+        <!-- Top Bar -->
+        <div class="feed-topbar">
+            <img id="topbar-avatar" class="topbar-avatar"
+                src="https://ui-avatars.com/api/?name=WA&background=128c7e&color=fff" alt="">
+            <div class="topbar-info">
+                <div class="topbar-name" id="topbar-name">Instância</div>
+                <div class="topbar-phone" id="topbar-phone"></div>
             </div>
+            <button class="btn-switch" onclick="switchInstance()">↩ Trocar</button>
+            <button class="tools-btn" onclick="toggleSidebar()" style="margin-left:4px;">🛠 Ferramentas</button>
         </div>
 
-        <!-- Tab: Grupos -->
-        <div class="tab-content" id="tab-groups">
-            <div class="container-fluid py-4 w-100 mx-auto" style="max-width: 1000px;">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h4 class="mb-0 fw-bold">Grupos da Instância</h4>
-                    <button class="btn btn-success btn-sm w-auto fw-semibold rounded-pill px-3 shadow-sm"
-                        id="btn-sync-groups" onclick="syncGroups()">
-                        <i class="bi bi-arrow-clockwise me-1"></i> Atualizar Grupos
-                    </button>
+        <!-- Hidden selector for backward compat -->
+        <select id="instance-selector" class="hidden"></select>
+
+        <div class="app-container" style="height:calc(100vh - 56px);">
+
+            <!-- Abas -->
+            <div class="tab-bar">
+                <button class="active" onclick="switchTab('chat', this)">💬 Conversas</button>
+                <button onclick="switchTab('groups', this)">👥 Grupos</button>
+            </div>
+
+            <!-- Tab: Conversas -->
+            <div class="tab-content active" id="tab-chat">
+                <div class="chat-container" id="monitor">
+                    <div style="text-align: center; margin: 20px 0; color: #666; font-size: 13px;">Selecione uma
+                        instância
+                        para visualizar</div>
                 </div>
-                <div id="sync-groups-status" class="small mb-3 text-center"></div>
-                <div id="groups-list" class="table-responsive shadow-sm rounded-3">
-                    <div class="text-center text-muted py-5 bg-white border rounded">
-                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                        Clique em "Atualizar Grupos" para carregar
+            </div>
+
+            <!-- Tab: Grupos -->
+            <div class="tab-content" id="tab-groups">
+                <div class="groups-container">
+                    <div class="groups-header">
+                        <h3>Grupos da Instância</h3>
+                        <button class="btn-sync-groups" id="btn-sync-groups" onclick="syncGroups()">🔄 Atualizar
+                            Grupos</button>
+                    </div>
+                    <div id="sync-groups-status" class="status-msg" style="margin-bottom: 10px;"></div>
+                    <div id="groups-list">
+                        <div style="text-align: center; color: #666; font-size: 13px; padding: 30px 0;">Selecione uma
+                            instância e clique em "Atualizar Grupos"</div>
                     </div>
                 </div>
             </div>
-        </div>
 
-    </main>
+            <!-- Sidebar -->
+            <div class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <h2>Painel de Controle</h2>
+                    <div class="close-btn" onclick="toggleSidebar()">&times;</div>
+                </div>
 
-    <!-- Sidebar Offcanvas -->
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="sidebar">
-        <div class="offcanvas-header text-white" style="background: var(--wa-primary);">
-            <h5 class="offcanvas-title fw-bold"><i class="bi bi-sliders text-white-50 me-2"></i> Painel de Controle</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"
-                aria-label="Close"></button>
-        </div>
-        <div class="offcanvas-body" style="background: var(--wa-bg);">
+                <div class="sidebar-content">
 
-            <!-- Send Message Card -->
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body">
-                    <h6 class="card-title fw-bold mb-3 d-flex align-items-center border-bottom pb-2">
-                        <i class="bi bi-chat-text text-success me-2 fs-5"></i> Enviar Mensagem
-                    </h6>
-                    <div class="mb-3">
-                        <label class="form-label small text-muted fw-semibold">Número Destino</label>
-                        <input type="text" class="form-control form-control-sm" id="send-number"
-                            placeholder="Ex: 5511999999999">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-muted fw-semibold">Mensagem</label>
-                        <textarea class="form-control form-control-sm" id="send-text" rows="3"
-                            placeholder="Sua mensagem..."></textarea>
-                    </div>
-                    <div class="mb-4">
-                        <label class="form-label small text-muted fw-semibold"><i class="bi bi-clock me-1"></i>
-                            Agendamento</label>
-                        <select class="form-select form-select-sm" id="msg-schedule">
-                            <option value="now">🟢 Enviar Agora</option>
+
+                    <!-- Enviar Mensagem -->
+                    <div class="tool-box">
+                        <h3>💬 Enviar Mensagem</h3>
+                        <label>Número Destino</label>
+                        <input type="text" id="send-number" placeholder="Ex: 5511999999999">
+                        <label>Mensagem</label>
+                        <textarea id="send-text" style="height: 60px;" placeholder="Mensagem..."></textarea>
+
+                        <label>⏰ Quando enviar</label>
+                        <select id="msg-schedule" style="margin-bottom: 8px;">
+                            <option value="now">🟢 Agora</option>
                             <option value="+5min">Daqui a 5 minutos</option>
                             <option value="+10min">Daqui a 10 minutos</option>
                             <option value="+30min">Daqui a 30 minutos</option>
                             <option value="+1hour">Daqui a 1 hora</option>
                             <option value="+2hours">Daqui a 2 horas</option>
-                            <option value="tomorrow_8">🌅 Amanhã às 8h</option>
+                            <option value="tomorrow_8">🌅 Amanhã cedo (8h)</option>
                             <option value="tomorrow_same">🔄 Amanhã neste horário</option>
                         </select>
-                    </div>
-                    <button class="btn btn-success w-100 fw-bold shadow-sm" onclick="sendMessage()" id="btn-send">
-                        <i class="bi bi-send me-1"></i> Enviar
-                    </button>
-                    <div id="send-status" class="mt-2 text-center small fw-medium"></div>
-                </div>
-            </div>
 
-            <!-- Send Status Card -->
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body">
-                    <h6 class="card-title fw-bold mb-3 d-flex align-items-center border-bottom pb-2">
-                        <i class="bi bi-circle text-primary me-2 fs-5"></i> Publicar Status
-                    </h6>
-                    <div class="mb-3">
-                        <label class="form-label small text-muted fw-semibold">Tipo</label>
-                        <select class="form-select form-select-sm" id="status-type" onchange="toggleStatusFields()">
+                        <button class="btn-action" onclick="sendMessage()" id="btn-send">Enviar</button>
+                        <div id="send-status" class="status-msg"></div>
+                    </div>
+
+                    <!-- Enviar Status/Stories -->
+                    <div class="tool-box">
+                        <h3>📸 Enviar Status / Stories</h3>
+                        <label>Tipo</label>
+                        <select id="status-type" onchange="toggleStatusFields()">
                             <option value="text">Texto</option>
                             <option value="image">Imagem</option>
                             <option value="video">Vídeo</option>
                             <option value="audio">Áudio</option>
                         </select>
-                    </div>
 
-                    <div id="status-text-fields" class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label small text-muted fw-semibold">Fundo</label>
-                            <select class="form-select form-select-sm" id="status-bg-color">
+                        <div id="status-text-fields">
+                            <label>Cor de Fundo</label>
+                            <select id="status-bg-color">
                                 <option value="1">Amarelo 1</option>
+                                <option value="2">Amarelo 2</option>
+                                <option value="3">Amarelo 3</option>
                                 <option value="4">Verde 1</option>
+                                <option value="5">Verde 2</option>
+                                <option value="6">Verde 3</option>
                                 <option value="7">Azul 1</option>
+                                <option value="8">Azul 2</option>
+                                <option value="9">Azul 3</option>
                                 <option value="10">Lilás 1</option>
+                                <option value="11">Lilás 2</option>
+                                <option value="12">Lilás 3</option>
                                 <option value="13">Magenta</option>
+                                <option value="14">Rosa 1</option>
+                                <option value="15">Rosa 2</option>
                                 <option value="16">Marrom</option>
-                                <option value="19" selected>Cinza Escuro</option>
+                                <option value="17">Cinza 1</option>
+                                <option value="18">Cinza 2</option>
+                                <option value="19" selected>Cinza 3 (padrão)</option>
                             </select>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small text-muted fw-semibold">Fonte</label>
-                            <select class="form-select form-select-sm" id="status-font">
+                            <label>Fonte</label>
+                            <select id="status-font">
                                 <option value="0">Padrão</option>
                                 <option value="1" selected>Estilo 1</option>
                                 <option value="2">Estilo 2</option>
+                                <option value="3">Estilo 3</option>
+                                <option value="4">Estilo 4</option>
+                                <option value="5">Estilo 5</option>
+                                <option value="6">Estilo 6</option>
+                                <option value="7">Estilo 7</option>
+                                <option value="8">Estilo 8</option>
                             </select>
                         </div>
-                    </div>
 
-                    <div id="status-media-fields" class="mb-3 d-none">
-                        <label class="form-label small text-muted fw-semibold">URL da Mídia</label>
-                        <input type="text" class="form-control form-control-sm" id="status-file"
-                            placeholder="https://exemplo.com/midia.jpg">
-                    </div>
+                        <div id="status-media-fields" class="hidden">
+                            <label>URL do arquivo</label>
+                            <input type="text" id="status-file" placeholder="https://exemplo.com/imagem.jpg">
+                        </div>
 
-                    <div class="mb-3">
-                        <label class="form-label small text-muted fw-semibold">Texto / Legenda</label>
-                        <textarea class="form-control form-control-sm" id="status-text" rows="2"
-                            placeholder="O que está acontecendo?"></textarea>
-                    </div>
+                        <label>Texto / Legenda</label>
+                        <textarea id="status-text" style="height: 60px;" placeholder="Texto do status..."></textarea>
 
-                    <div class="mb-4">
-                        <label class="form-label small text-muted fw-semibold"><i class="bi bi-clock me-1"></i>
-                            Agendamento</label>
-                        <select class="form-select form-select-sm" id="status-schedule">
-                            <option value="now">🟢 Publicar Agora</option>
+                        <label>⏰ Quando enviar</label>
+                        <select id="status-schedule" style="margin-bottom: 8px;">
+                            <option value="now">🟢 Agora</option>
                             <option value="+5min">Daqui a 5 minutos</option>
+                            <option value="+10min">Daqui a 10 minutos</option>
                             <option value="+30min">Daqui a 30 minutos</option>
                             <option value="+1hour">Daqui a 1 hora</option>
-                            <option value="tomorrow_8">🌅 Amanhã às 8h</option>
+                            <option value="+2hours">Daqui a 2 horas</option>
+                            <option value="tomorrow_8">🌅 Amanhã cedo (8h)</option>
+                            <option value="tomorrow_same">🔄 Amanhã neste horário</option>
                         </select>
+
+                        <button class="btn-action" onclick="sendStatus()" id="btn-send-status">Publicar Status</button>
+                        <div id="status-send-status" class="status-msg"></div>
                     </div>
 
-                    <button class="btn btn-primary w-100 fw-bold shadow-sm" onclick="sendStatus()" id="btn-send-status">
-                        <i class="bi bi-broadcast me-1"></i> Publicar Status
-                    </button>
-                    <div id="status-send-status" class="mt-2 text-center small fw-medium"></div>
-                </div>
-            </div>
-
-            <!-- Schedules Sync Card -->
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <h6 class="card-title fw-bold mb-3 d-flex align-items-center border-bottom pb-2">
-                        <i class="bi bi-calendar-event text-info me-2 fs-5"></i> Agendamentos Ativos
-                    </h6>
-                    <button class="btn btn-outline-info btn-sm w-100 fw-semibold mb-3" onclick="loadSchedules()">
-                        <i class="bi bi-arrow-clockwise me-1"></i> Atualizar Lista
-                    </button>
-                    <div id="schedules-list" class="small text-muted text-center pt-2">Clique em Atualizar para buscar.
+                    <!-- Agendamentos Pendentes -->
+                    <div class="tool-box">
+                        <h3>📅 Agendamentos</h3>
+                        <button class="btn-action" onclick="loadSchedules()"
+                            style="background:#34B7F1;margin-bottom:8px;font-size:12px;padding:6px 12px;">🔄
+                            Atualizar</button>
+                        <div id="schedules-list" style="font-size:12px;">Clique em Atualizar para ver.</div>
                     </div>
+
                 </div>
             </div>
 
         </div>
     </div>
 
-    <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-
         let lastLogsString = '';
 
-        // toggleSidebar handled by Bootstrap offcanvas
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
         function escapeHTML(str) { if (!str) return ''; return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])); }
         function formatTime(timestamp) { return new Date(timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); }
 
@@ -1181,20 +1571,6 @@ if (isset($_GET['action'])) {
             }
         }
 
-        // --- INICIALIZAÇÃO DO FEED ---
-        async function initFeed() {
-            try {
-                const res = await fetch('index.php?action=get_instances');
-                instancesData = await res.json();
-                const instanceName = "<?= htmlspecialchars($activeInstanceName ?? '')?>";
-                if (instanceName) {
-                    selectInstance(instanceName);
-                }
-            } catch (e) {
-                console.error("Erro ao carregar metadados da instância.");
-            }
-        }
-
         // --- SELECIONAR INSTÂNCIA (ir para feed) ---
         function selectInstance(name) {
             activeInstanceName = name;
@@ -1212,8 +1588,8 @@ if (isset($_GET['action'])) {
             selector.value = name;
 
             // Trocar telas
-            // document.getElementById('screen-select').classList.add('hidden');
-            // document.getElementById('screen-feed').classList.remove('hidden');
+            document.getElementById('screen-select').classList.add('hidden');
+            document.getElementById('screen-feed').classList.remove('hidden');
 
             // Limpar e carregar
             document.getElementById('monitor').innerHTML = '<div style="text-align: center; margin: 20px 0; color: #666; font-size: 13px;">Carregando mensagens...</div>';
@@ -1227,7 +1603,12 @@ if (isset($_GET['action'])) {
 
         // --- TROCAR DE INSTÂNCIA (voltar para seleção) ---
         function switchInstance() {
-            window.location.href = 'instances.php';
+            if (logsInterval) { clearInterval(logsInterval); logsInterval = null; }
+            document.getElementById('screen-feed').classList.add('hidden');
+            document.getElementById('screen-select').classList.remove('hidden');
+            document.getElementById('sidebar').classList.remove('open');
+            lastLogsString = '';
+            loadInstances(); // refresh cards
         }
 
         function changeInstance() {
@@ -1550,56 +1931,46 @@ if (isset($_GET['action'])) {
                         } else if (content.JPEGThumbnail) {
                             mediaHtml = `<div style="position:relative"><img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-image" alt="GIF"><div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.6);color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold">GIF</div></div>`;
                         }
-                    }
+                              
+                                           = '';
+                        if (msg.isGroup) {
+                            const groupImage = chatInfo.imagePreview || tars.com / api /? name = G & background=dfe5e7& color=667781';
+                            const groupName = chatInfo.name || msg.groupName || "Grupo";
+                            senderName = isFromMe ? "Você" : (msg.senderName || "Desconhecido");
+                            let s                        romMe ?activeInstance: (msg.sender_pn ?msg.sender_pn.split('@')[0] : '');
 
-                    let headerHtml = '';
-                    if (msg.isGroup) {
-                        const groupImage = chatInfo.imagePreview || 'https://ui-avatars.com/api/?name=G&background=dfe5e7&color=667781';
-                        const groupName = chatInfo.name || msg.groupName || "Grupo";
-                        const senderName = isFromMe ? "Você" : (msg.senderName || "Desconhecido");
-                        const senderPhone = (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
-
-                        headerHtml = `
-                            <div class="group-header-block" style="margin-bottom: 8px; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 4px;">
-                                <div class="info-line" style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
-                                    <img src="${groupImage}" style="width: 16px; height: 16px; object-fit: cover; border-radius: 50%;">
-                                    <strong style="color: #4a5568;">${escapeHTML(groupName)}</strong>
+                headerHtml = `
+                            <div class="group-header-block">
+                                <div class="info-line">
+                                    <img src="${groupImage}" class="tiny-avatar" alt="G">
+                                    <span class="group-name">${escapeHTML(groupName)}</span>
                                 </div>
-                                <div class="info-line" style="font-size: 11px; color: #718096;">
-                                    <span>${escapeHTML(senderName)} ${senderPhone ? `(${senderPhone})` : ''}</span>
-                                </div>
-                            </div>
+                                <div class="info-line">
+                                    <span class="sender-name">${escapeHTML(senderName)} <span class="sender-phone">(${senderPhone})</span></span>                                         </d                                        </div>
                         `;
-                    } else if (!isFromMe) {
-                        const contactName = msg.senderName || chatInfo.name || "Contato";
-                        const contactPhone = chatInfo.phone || (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
-                        headerHtml = `<div style="margin-bottom: 5px; font-weight: bold; color: var(--wa-teal); font-size: 13px;">${escapeHTML(contactName)} ${contactPhone ? `<span style="font-weight: normal; color: #a0aec0;">(${contactPhone})</span>` : ''}</div>`;
-                    }
+                                        isFromMe) {
+                    const contactName = msg.senderName || chatInfo.name ||                                            const contactPhone = chatInfo.phone || (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
+                    headerHtml = `<div style="margin-bottom: 5px;"><span class                    e">                    (contactName)}</span> ${contactPhone ? `<span class="sender-phone">(${contactPhone})</span>` : ''}</div>`;
+                }
 
-                    let html = `
+                let html = `
                         <div class="msg-row ${alignClass}">
                             <div class="bubble ${alignClass}">
                                 ${headerHtml}
                                 ${mediaHtml}
                                 <div class="msg-text">${escapeHTML(msg.text || '')}</div>
-                                <div class="time" style="margin-top: 5px; font-size: 11px; color: rgba(0,0,0,0.45); display: flex; justify-content: flex-end; align-items: center; gap: 4px;">
-                                    ${time} ${isFromMe ? '<span style="color: #53bdeb; font-size: 14px;">✓✓</span>' : ''}
-                                </div>
-                            </div>
-                        </div>
+                                <div class="time" s                    -top: 5px;">${time} ${isFromMe                 ''
+            }<                                          </div >
+                        </div >
                     `;
                     monitorDiv.innerHTML += html;
                 });
 
-                monitorDiv.scrollTop = monitorDiv.scrollHeight;
-            } catch (error) {
-                console.error("Erro:", error);
-            }
+                monitorDiv.scrollTop = monitorDiv.scrollht;       } catch (error) { console.error("Erro:", error); }
         }
 
-        // Initialize Feed
-        initFeed();
-
+        // Inicia carregando as instâncias para a tela de seleção
+        loadInstances();
     </script>
 </body>
 
