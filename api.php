@@ -602,7 +602,8 @@ if (isset($_GET['action'])) {
         }
 
         require_once __DIR__ . '/opencode_api.php';
-        $aiResult = generateOpenCodeMessage($agent['prompt']);
+        $history = getAgentMessageHistory($pdo, $agentId, 10);
+        $aiResult = generateOpenCodeMessage($agent['prompt'], $history);
 
         if (!$aiResult['success']) {
             echo json_encode(['error' => 'Falha ao gerar mensagem: ' . $aiResult['error']]);

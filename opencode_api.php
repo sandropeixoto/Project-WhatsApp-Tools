@@ -1,7 +1,7 @@
 <?php
 // opencode_api.php
 
-function generateOpenCodeMessage($prompt)
+function generateOpenCodeMessage($prompt, $previousMessages = [])
 {
     if (!file_exists(__DIR__ . '/config.php')) {
         return ['success' => false, 'error' => 'Arquivo config.php ausente.'];
@@ -16,18 +16,30 @@ function generateOpenCodeMessage($prompt)
     $apiKey = $config['api_key'];
     $model = $config['model'] ?? 'gpt-5-nano';
 
+    // System prompt com instrução anti-repetição
+    $systemContent = 'Você é um assistente responsável por redigir mensagens concisas, no idioma do prompt fornecido, com uma linguagem natural e empática para envio em aplicativos de mensagens como WhatsApp. Não utilize formatação markdown agressiva, apenas texto simples, emojis se adequado, e siga estritamente o tema solicitado.';
+
+    if (!empty($previousMessages)) {
+        $systemContent .= "\n\nIMPORTANTE: Abaixo estão mensagens que você já escreveu anteriormente sobre este mesmo tema. Você DEVE criar uma mensagem completamente NOVA e DIFERENTE. Não repita ideias, frases, estruturas ou abordagens similares. Seja criativo e surpreenda com uma perspectiva ou ângulo diferente.";
+    }
+
+    $messages = [
+        ['role' => 'system', 'content' => $systemContent]
+    ];
+
+    // Injetar mensagens anteriores como histórico (role: assistant)
+    foreach ($previousMessages as $prevMsg) {
+        if (!empty($prevMsg)) {
+            $messages[] = ['role' => 'assistant', 'content' => $prevMsg];
+        }
+    }
+
+    // Prompt do usuário
+    $messages[] = ['role' => 'user', 'content' => $prompt];
+
     $payload = [
         'model' => $model,
-        'messages' => [
-            [
-                'role' => 'system',
-                'content' => 'Você é um assistente responsável por redigir mensagens concisas, no idioma do prompt fornecido, com uma linguagem natural e empática para envio em aplicativos de mensagens como WhatsApp. Não utilize formatação markdown agressiva, apenas texto simples, emojis se adequado, e siga estritamente o tema solicitado.'
-            ],
-            [
-                'role' => 'user',
-                'content' => $prompt
-            ]
-        ]
+        'messages' => $messages
     ];
 
     $ch = curl_init($url);
@@ -54,4 +66,27 @@ function generateOpenCodeMessage($prompt)
     }
 
     return ['success' => true, 'message' => trim($data['choices'][0]['message']['content'])];
+}
+
+/**
+ * Busca as últimas N mensagens geradas por um agente no banco de dados.
+ * Usa a tabela uazapi_schedule que já contém o texto no payload JSON.
+ */
+function getAgentMessageHistory($pdo, $agentId, $limit = 10)
+{
+    $jsonPath = '$.agent_id';
+    $textPath = '$.text';
+    $stmt = $pdo->prepare("
+        SELECT JSON_UNQUOTE(JSON_EXTRACT(payload, ?)) as msg_text
+        FROM uazapi_schedule
+        WHERE CAST(JSON_UNQUOTE(JSON_EXTRACT(payload, ?)) AS UNSIGNED) = ?
+        AND JSON_EXTRACT(payload, ?) IS NOT NULL
+        ORDER BY id DESC
+        LIMIT ?
+    ");
+    $stmt->execute([$textPath, $jsonPath, $agentId, $textPath, $limit]);
+    $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    // Reverter para ordem cronológica (mais antiga primeiro)
+    return array_reverse($rows);
 }
