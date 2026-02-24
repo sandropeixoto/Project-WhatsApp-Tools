@@ -120,6 +120,57 @@ if (isset($_GET['action'])) {
         exit;
     }
 
+    // 4b. Agendar Mensagem de Texto
+    if ($action === 'schedule_message') {
+        $instanceName = $input['instance_name'] ?? '';
+        $schedule = $input['schedule'] ?? 'now';
+        $number = $input['number'] ?? '';
+        $text = $input['text'] ?? '';
+
+        if (empty($instanceName) || empty($number) || empty($text)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Preencha todos os campos.']);
+            exit;
+        }
+
+        $apiPayload = ['number' => $number, 'text' => $text];
+
+        $now = new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
+        switch ($schedule) {
+            case '+5min':
+                $now->modify('+5 minutes');
+                break;
+            case '+10min':
+                $now->modify('+10 minutes');
+                break;
+            case '+30min':
+                $now->modify('+30 minutes');
+                break;
+            case '+1hour':
+                $now->modify('+1 hour');
+                break;
+            case '+2hours':
+                $now->modify('+2 hours');
+                break;
+            case 'tomorrow_8':
+                $now->modify('+1 day');
+                $now->setTime(8, 0, 0);
+                break;
+            case 'tomorrow_same':
+                $now->modify('+1 day');
+                break;
+            default:
+                $now->modify('+5 minutes');
+        }
+        $scheduledAt = $now->format('Y-m-d H:i:s');
+
+        $stmt = $pdo->prepare("INSERT INTO uazapi_schedule (instance_name, task_type, payload, scheduled_at) VALUES (?, 'message', ?, ?)");
+        $stmt->execute([$instanceName, json_encode($apiPayload), $scheduledAt]);
+
+        echo json_encode(['success' => true, 'scheduled_at' => $scheduledAt, 'id' => $pdo->lastInsertId()]);
+        exit;
+    }
+
     // 5. Enviar Status/Stories
     if ($action === 'send_status') {
         $instanceName = $input['instance_name'] ?? '';
@@ -1300,6 +1351,19 @@ if (isset($_GET['action'])) {
                         <input type="text" id="send-number" placeholder="Ex: 5511999999999">
                         <label>Mensagem</label>
                         <textarea id="send-text" style="height: 60px;" placeholder="Mensagem..."></textarea>
+
+                        <label>⏰ Quando enviar</label>
+                        <select id="msg-schedule" style="margin-bottom: 8px;">
+                            <option value="now">🟢 Agora</option>
+                            <option value="+5min">Daqui a 5 minutos</option>
+                            <option value="+10min">Daqui a 10 minutos</option>
+                            <option value="+30min">Daqui a 30 minutos</option>
+                            <option value="+1hour">Daqui a 1 hora</option>
+                            <option value="+2hours">Daqui a 2 horas</option>
+                            <option value="tomorrow_8">🌅 Amanhã cedo (8h)</option>
+                            <option value="tomorrow_same">🔄 Amanhã neste horário</option>
+                        </select>
+
                         <button class="btn-action" onclick="sendMessage()" id="btn-send">Enviar</button>
                         <div id="send-status" class="status-msg"></div>
                     </div>
@@ -1860,48 +1924,42 @@ if (isset($_GET['action'])) {
                         } else if (content.JPEGThumbnail) {
                             mediaHtml = `<div style="position:relative"><img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-image" alt="GIF"><div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.6);color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold">GIF</div></div>`;
                         }
-                    }
+                              
+                                           = '';
+                        if (msg.isGroup) {
+                            const groupImage = chatInfo.imagePreview || tars.com / api /? name = G & background=dfe5e7& color=667781';
+                            const groupName = chatInfo.name || msg.groupName || "Grupo";
+                            senderName = isFromMe ? "Você" : (msg.senderName || "Desconhecido");
+                            let s                        romMe ?activeInstance: (msg.sender_pn ?msg.sender_pn.split('@')[0] : '');
 
-                    let headerHtml = '';
-                    if (msg.isGroup) {
-                        const groupImage = chatInfo.imagePreview || 'https://ui-avatars.com/api/?name=G&background=dfe5e7&color=667781';
-                        const groupName = chatInfo.name || msg.groupName || "Grupo";
-                        let senderName = isFromMe ? "Você" : (msg.senderName || "Desconhecido");
-                        let senderPhone = isFromMe ? activeInstance : (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
-
-                        headerHtml = `
+                headerHtml = `
                             <div class="group-header-block">
                                 <div class="info-line">
                                     <img src="${groupImage}" class="tiny-avatar" alt="G">
                                     <span class="group-name">${escapeHTML(groupName)}</span>
                                 </div>
                                 <div class="info-line">
-                                    <span class="sender-name">${escapeHTML(senderName)} <span class="sender-phone">(${senderPhone})</span></span>
-                                </div>
-                            </div>
+                                    <span class="sender-name">${escapeHTML(senderName)} <span class="sender-phone">(${senderPhone})</span></span>                                         </d                                        </div>
                         `;
-                    } else if (!isFromMe) {
-                        const contactName = msg.senderName || chatInfo.name || "Contato";
-                        const contactPhone = chatInfo.phone || (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
-                        headerHtml = `<div style="margin-bottom: 5px;"><span class="sender-name">${escapeHTML(contactName)}</span> ${contactPhone ? `<span class="sender-phone">(${contactPhone})</span>` : ''}</div>`;
-                    }
+                                        isFromMe) {
+                    const contactName = msg.senderName || chatInfo.name ||                                            const contactPhone = chatInfo.phone || (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
+                    headerHtml = `<div style="margin-bottom: 5px;"><span class                    e">                    (contactName)}</span> ${contactPhone ? `<span class="sender-phone">(${contactPhone})</span>` : ''}</div>`;
+                }
 
-                    let html = `
+                let html = `
                         <div class="msg-row ${alignClass}">
                             <div class="bubble ${alignClass}">
                                 ${headerHtml}
                                 ${mediaHtml}
                                 <div class="msg-text">${escapeHTML(msg.text || '')}</div>
-                                <div class="time" style="margin-top: 5px;">${time} ${isFromMe ? '✓' : ''}</div>
-                            </div>
-                        </div>
+                                <div class="time" s                    -top: 5px;">${time} ${isFromMe                 ''
+            }<                                          </div >
+                        </div >
                     `;
                     monitorDiv.innerHTML += html;
                 });
 
-                monitorDiv.scrollTop = monitorDiv.scrollHeight;
-
-            } catch (error) { console.error("Erro:", error); }
+                monitorDiv.scrollTop = monitorDiv.scrollht;       } catch (error) { console.error("Erro:", error); }
         }
 
         // Inicia carregando as instâncias para a tela de seleção

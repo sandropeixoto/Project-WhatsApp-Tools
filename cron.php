@@ -35,6 +35,9 @@ foreach ($tasks as $task) {
     if ($task['task_type'] === 'status') {
         $endpoint = '/send/status';
     }
+    elseif ($task['task_type'] === 'message') {
+        $endpoint = '/send/text';
+    }
     else {
         $updateStmt->execute(['failed', 'Tipo de tarefa desconhecido: ' . $task['task_type'], $task['id']]);
         continue;
