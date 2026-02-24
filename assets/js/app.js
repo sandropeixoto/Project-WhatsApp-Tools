@@ -1,6 +1,4 @@
-
-
-        let lastLogsString = '';
+let lastLogsString = '';
 
         // toggleSidebar handled by Bootstrap offcanvas
         function escapeHTML(str) { if (!str) return ''; return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])); }
@@ -81,7 +79,7 @@
         // --- CARREGAR INSTÂNCIAS (para tela de seleção) ---
         async function loadInstances() {
             try {
-                const res = await fetch('index.php?action=get_instances');
+                const res = await fetch('api.php?action=get_instances');
                 instancesData = await res.json();
                 renderInstanceCards(instancesData);
             } catch (e) {
@@ -96,7 +94,7 @@
             btn.innerText = '⏳ Sincronizando...';
 
             try {
-                const res = await fetch('index.php?action=sync_instances');
+                const res = await fetch('api.php?action=sync_instances');
                 const data = await res.json();
                 if (res.ok) {
                     await loadInstances();
@@ -112,10 +110,17 @@
         // --- INICIALIZAÇÃO DO FEED ---
         async function initFeed() {
             try {
-                const res = await fetch('index.php?action=get_instances');
+                const res = await fetch('api.php?action=get_instances');
                 instancesData = await res.json();
                 const instanceName = "<?= htmlspecialchars($activeInstanceName ?? '')?>";
                 if (instanceName) {
+        
+    if (document.getElementById('local-schedules-list')) {
+        const path = window.location.pathname;
+        if (path.includes('send_message')) loadLocalSchedules('message');
+        if (path.includes('send_status')) loadLocalSchedules('status');
+    }
+
                     selectInstance(instanceName);
                 }
             } catch (e) {
@@ -144,7 +149,7 @@
             // document.getElementById('screen-feed').classList.remove('hidden');
 
             // Limpar e carregar
-            document.getElementById('monitor').innerHTML = '<div style="text-align: center; margin: 20px 0; color: #666; font-size: 13px;">Carregando mensagens...</div>';
+            const mon = document.getElementById('monitor'); if (mon) mon.innerHTML = '<div style="text-align: center; margin: 20px 0; color: #666; font-size: 13px;">Carregando mensagens...</div>';
             lastLogsString = '';
             fetchLogs();
 
@@ -183,7 +188,7 @@
             statusDiv.innerHTML = schedule === 'now' ? 'Enviando...' : 'Agendando...';
 
             try {
-                const res = await fetch(`index.php?action=${action}`, {
+                const res = await fetch(`api.php?action=${action}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -225,7 +230,7 @@
 
             statusDiv.innerHTML = 'Publicando...';
             try {
-                const res = await fetch('index.php?action=send_status', {
+                const res = await fetch('api.php?action=send_status', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -256,7 +261,7 @@
             statusDiv.innerHTML = "";
 
             try {
-                const res = await fetch('index.php?action=sync_groups', {
+                const res = await fetch('api.php?action=sync_groups', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ instance_name: activeInstance })
@@ -287,7 +292,7 @@
             }
 
             try {
-                const res = await fetch(`index.php?action=get_groups&name=${activeInstance}`);
+                const res = await fetch(`api.php?action=get_groups&name=${activeInstance}`);
                 const groups = await res.json();
 
                 if (groups.length === 0) {
@@ -338,7 +343,7 @@
             try {
                 listDiv.innerHTML = '<div class="text-center text-muted py-5 bg-white border rounded"><i class="bi bi-arrow-repeat fs-1 d-block mb-2 text-info spinner-border border-0"></i> Carregando agendamentos...</div>';
 
-                const res = await fetch(`index.php?action=get_schedules&name=${encodeURIComponent(activeInstance)}`);
+                const res = await fetch(`api.php?action=get_schedules&name=${encodeURIComponent(activeInstance)}`);
                 const schedules = await res.json();
 
                 if (!Array.isArray(schedules) || schedules.length === 0) {
@@ -389,7 +394,7 @@
             if (!confirm('Tem certeza que deseja cancelar este agendamento?')) return;
 
             try {
-                const res = await fetch('index.php?action=cancel_schedule', {
+                const res = await fetch('api.php?action=cancel_schedule', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: id })
@@ -430,7 +435,7 @@
             btn.disabled = true;
 
             try {
-                const res = await fetch('index.php?action=save_media', {
+                const res = await fetch('api.php?action=save_media', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ file_url: fileUrl, file_name: fileName, msg_type: msgType })
@@ -463,7 +468,7 @@
             el.onclick = null;
 
             try {
-                const res = await fetch('index.php?action=download_media_api', {
+                const res = await fetch('api.php?action=download_media_api', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ instance_name: activeInstance, message_id: messageId })
@@ -494,7 +499,7 @@
             if (!activeInstance) return;
 
             try {
-                const response = await fetch(`index.php?action=get_logs&name=${activeInstance}`);
+                const response = await fetch(`api.php?action=get_logs&name=${activeInstance}`);
                 const textData = await response.text();
 
                 if (textData === lastLogsString) return;
@@ -624,5 +629,55 @@
         }
 
         // Initialize Feed
-        initFeed
-    
+        initFeed();
+
+
+// --- CARREGAR AGENDAMENTOS LOCAIS (send_message / send_status) ---
+async function loadLocalSchedules(type) {
+    const activeInstance = document.getElementById('instance-selector').value;
+    const listDiv = document.getElementById('local-schedules-list');
+    if (!listDiv) return;
+
+    if (!activeInstance) {
+        listDiv.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">Selecione uma instância.</td></tr>';
+        return;
+    }
+
+    try {
+        listDiv.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">Carregando...</td></tr>';
+        const res = await fetch(`api.php?action=get_schedules&name=${encodeURIComponent(activeInstance)}`);
+        const schedules = await res.json();
+        const filtered = (schedules || []).filter(s => s.task_type === type);
+
+        if (filtered.length === 0) {
+            listDiv.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">Nenhum agendamento ativo.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        filtered.forEach(s => {
+            let statusBadge = s.status === 'pending' ? '<span class="badge bg-warning text-dark">Pendente</span>' :
+                (s.status === 'success' ? '<span class="badge bg-success">Enviado</span>' :
+                (s.status === 'cancelled' ? '<span class="badge bg-secondary">Cancelado</span>' : '<span class="badge bg-danger">Falhou</span>'));
+            
+            let destOrType = 'N/A';
+            try {
+                const p = JSON.parse(s.payload);
+                if (type === 'message') destOrType = p.number || 'N/A';
+                if (type === 'status') destOrType = p.type || 'N/A';
+            } catch(e) {}
+
+            html += `<tr>
+                <td class="px-4">${new Date(s.scheduled_at).toLocaleString()}</td>
+                <td>${escapeHTML(destOrType)}</td>
+                <td>${statusBadge}</td>
+                <td class="text-end px-4">
+                    ${s.status === 'pending' ? `<button class="btn btn-sm btn-outline-danger" title="Cancelar Agendamento" onclick="deleteSchedule(${s.id})"><i class="bi bi-trash"></i></button>` : ''}
+                </td>
+            </tr>`;
+        });
+        listDiv.innerHTML = html;
+    } catch (e) {
+        listDiv.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-danger">Erro ao carregar agendamentos.</td></tr>';
+    }
+}
