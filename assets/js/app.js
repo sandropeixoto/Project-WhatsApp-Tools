@@ -706,6 +706,8 @@ async function loadLocalSchedules(type) {
     }
 }
 
+let loadedAgents = [];
+
 // --- AGENTES DE IA (OpenCode) ---
 async function loadAgents() {
     const listDiv = document.getElementById('agents-list');
@@ -716,6 +718,7 @@ async function loadAgents() {
     try {
         const res = await fetch('api.php?action=get_agents');
         const agents = await res.json();
+        loadedAgents = agents;
 
         if (!Array.isArray(agents) || agents.length === 0) {
             listDiv.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted small">Nenhum agente configurado. Clique em "Novo Agente" para começar.</td></tr>';
@@ -748,6 +751,12 @@ async function loadAgents() {
                     <td class="text-center">${statusBadge}</td>
                     <td class="text-end px-3">
                         <div class="btn-group shadow-sm">
+                            <button class="btn btn-sm btn-light border text-primary" title="Editar Agente" onclick="openEditAgentModal(${a.id})">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-light border text-info" title="Forçar Geração de Mensagem" onclick="forceGenerateAgentMessage(${a.id})">
+                                <i class="bi bi-magic"></i>
+                            </button>
                             <button class="btn btn-sm btn-light border" title="${a.status === 'active' ? 'Pausar' : 'Ativar'}" onclick="toggleAgentStatus(${a.id}, '${a.status === 'active' ? 'paused' : 'active'}')">
                                 <i class="bi ${a.status === 'active' ? 'bi-pause-fill text-warning' : 'bi-play-fill text-success'}"></i>
                             </button>
@@ -773,6 +782,7 @@ async function createAgent() {
         return;
     }
 
+    const id = document.getElementById('agent-id').value;
     const name = document.getElementById('agent-name').value.trim();
     const recipient = document.getElementById('agent-recipient').value.trim();
     const prompt = document.getElementById('agent-prompt').value.trim();
@@ -788,10 +798,11 @@ async function createAgent() {
     }
 
     btnSave.disabled = true;
-    btnSave.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Criando... IA gerando texto...';
+    btnSave.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Gravando...';
 
     try {
         const payload = {
+            id: id,
             instance_name: activeInstance,
             name: name,
             prompt: prompt,
@@ -801,7 +812,8 @@ async function createAgent() {
             requires_review: review
         };
 
-        const res = await fetch('api.php?action=create_agent', {
+        const action = id ? 'edit_agent' : 'create_agent';
+        const res = await fetch(`api.php?action=${action}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -812,8 +824,6 @@ async function createAgent() {
         if (res.ok && data.success) {
             if (data.warning) {
                 alert("Aviso: " + data.warning);
-            } else {
-                // Success
             }
 
             // Close modal
@@ -825,22 +835,65 @@ async function createAgent() {
 
             // Reset form
             document.getElementById('new-agent-form').reset();
+            document.getElementById('agent-id').value = '';
 
             // Reload list
             loadAgents();
 
-            if (data.message) {
+            if (data.message && action === 'create_agent') {
                 // Show a brief success message (optional, could use a toast)
             }
         } else {
-            alert("Erro ao criar agente: " + (data.error || "Falha desconhecida."));
+            alert("Erro ao " + (id ? "editar" : "criar") + " agente: " + (data.error || "Falha desconhecida."));
+            btnSave.disabled = false;
+            btnSave.innerHTML = id ? '<i class="bi bi-check2-circle me-1"></i>Salvar Alterações' : '<i class="bi bi-check2-circle me-1"></i>Criar Agente';
         }
     } catch (e) {
-        alert("Erro de comunicação ao criar agente.");
+        alert("Erro de comunicação ao gravar agente.");
         console.error(e);
-    } finally {
         btnSave.disabled = false;
-        btnSave.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Criar Agente';
+        btnSave.innerHTML = id ? '<i class="bi bi-check2-circle me-1"></i>Salvar Alterações' : '<i class="bi bi-check2-circle me-1"></i>Criar Agente';
+    }
+}
+
+function openEditAgentModal(id) {
+    const agent = loadedAgents.find(a => a.id == id);
+    if (!agent) return;
+
+    document.getElementById('agent-id').value = agent.id;
+    document.getElementById('agent-name').value = agent.name;
+    document.getElementById('agent-recipient').value = agent.recipient;
+    document.getElementById('agent-prompt').value = agent.prompt;
+    document.getElementById('agent-interval').value = agent.interval_minutes;
+    document.getElementById('agent-restricted').value = agent.restricted_hours;
+    document.getElementById('agent-review').checked = agent.requires_review == 1;
+
+    document.getElementById('agent-modal-title').textContent = 'Editar Agente';
+    document.getElementById('agent-btn-text').textContent = 'Salvar Alterações';
+
+    const modal = new bootstrap.Modal(document.getElementById('newAgentModal'));
+    modal.show();
+}
+
+async function forceGenerateAgentMessage(id) {
+    if (!confirm("Isso fará a IA gerar uma nova mensagem para este agente imediatamente. A mensagem será enviada ou colocada para revisão a depender da configuração do agente. Continuar?")) return;
+
+    try {
+        const res = await fetch('api.php?action=force_generate_agent_message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+            alert("Sucesso! Nova mensagem gerada e programada. Verifique na lista de Agendamentos.");
+            loadSchedules(); // attempt to reload schedules if we're on a mixed view
+        } else {
+            alert("Erro ao gerar nova mensagem: " + (data.error || "Desconhecido"));
+        }
+    } catch (e) {
+        alert("Erro de comunicação.");
     }
 }
 

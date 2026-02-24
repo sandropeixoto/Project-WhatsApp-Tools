@@ -46,12 +46,14 @@ require_once __DIR__ . '/components/sidebar.php';
     <div class="modal-dialog modal-lg">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-primary text-white border-0">
-                <h5 class="modal-title fw-bold"><i class="bi bi-robot me-2 text-warning"></i>Criar Novo Agente</h5>
+                <h5 class="modal-title fw-bold"><i class="bi bi-robot me-2 text-warning"></i><span
+                        id="agent-modal-title">Criar Novo Agente</span></h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                     aria-label="Close"></button>
             </div>
             <div class="modal-body bg-light">
                 <form id="new-agent-form">
+                    <input type="hidden" id="agent-id" value="">
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-muted mb-1 text-uppercase">Nome do Agente
@@ -104,7 +106,7 @@ require_once __DIR__ . '/components/sidebar.php';
             <div class="modal-footer border-0 bg-white">
                 <button type="button" class="btn btn-light shadow-sm" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-primary fw-semibold shadow-sm px-4" id="btn-save-agent">
-                    <i class="bi bi-check2-circle me-1"></i>Criar Agente
+                    <i class="bi bi-check2-circle me-1"></i><span id="agent-btn-text">Criar Agente</span>
                 </button>
             </div>
         </div>
@@ -118,6 +120,15 @@ require_once __DIR__ . '/components/sidebar.php';
                 loadAgents();
             }
         }, 500);
+
+        const newAgentModal = document.getElementById('newAgentModal');
+        if (newAgentModal) {
+            newAgentModal.addEventListener('hidden.bs.modal', funcent-form').reset();
+                document.getElementById('agent-id').value = '';
+                document.getElementById('agent-modal-title').textContent = 'Criar Novo Agente';
+                document.getElementById('agent-btn-text').textContent = 'Criar Agente';
+            });
+        }
 
         const btnSave = document.getElementById('btn-save-agent');
         if (btnSave) {

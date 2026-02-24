@@ -288,7 +288,7 @@ if (isset($_GET['action'])) {
     // 5d. Cancelar Agendamento
     if ($action === 'cancel_schedule') {
         $id = $input['id'] ?? 0;
-        $stmt = $pdo->prepare("UPDATE uazapi_schedule SET status = 'cancelled' WHERE id = ? AND status = 'pending'");
+        $stmt = $pdo->prepare("UPDATE uazapi_schedule SET status = 'cancelled' WHERE id = ? AND status IN ('pending', 'paused')");
         $stmt->execute([$id]);
         echo json_encode(['success' => $stmt->rowCount() > 0]);
         exit;
@@ -558,6 +558,70 @@ if (isset($_GET['action'])) {
         exit;
     }
 
+    if ($action === 'edit_agent') {
+        $id = $input['id'] ?? 0;
+        $name = $input['name'] ?? '';
+        $prompt = $input['prompt'] ?? '';
+        $recipient = $input['recipient'] ?? '';
+        $intervalMinutes = (int)($input['interval_minutes'] ?? 60);
+        $restrictedHours = $input['restricted_hours'] ?? '';
+        $requiresReview = isset($input['requires_review']) ? (int)$input['requires_review'] : 1;
+
+        if (empty($id) || empty($name) || empty($prompt) || empty($recipient)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Preencha todos os campos obrigatórios.']);
+            exit;
+        }
+
+        $stmt = $pdo->prepare("UPDATE uazapi_agents SET 
+            name = ?, prompt = ?, recipient = ?, interval_minutes = ?, restricted_hours = ?, requires_review = ?
+            WHERE id = ?");
+        $stmt->execute([$name, $prompt, $recipient, $intervalMinutes, $restrictedHours, $requiresReview, $id]);
+
+        echo json_encode(['success' => true]);
+        exit;
+    }
+
+    if ($action === 'force_generate_agent_message') {
+        $agentId = $input['id'] ?? 0;
+        $stmt = $pdo->prepare("SELECT * FROM uazapi_agents WHERE id = ?");
+        $stmt->execute([$agentId]);
+        $agent = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$agent) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Agente não encontrado.']);
+            exit;
+        }
+
+        require_once __DIR__ . '/opencode_api.php';
+        $aiResult = generateOpenCodeMessage($agent['prompt']);
+
+        if (!$aiResult['success']) {
+            echo json_encode(['error' => 'Falha ao gerar mensagem: ' . $aiResult['error']]);
+            exit;
+        }
+
+        $generatedText = $aiResult['message'];
+        $scheduleStatus = $agent['requires_review'] ? 'paused' : 'pending';
+
+        $now = new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
+        $now->modify('+1 minute');
+        $scheduledAt = $now->format('Y-m-d H:i:s');
+
+        $apiPayload = [
+            'number' => $agent['recipient'],
+            'text' => $generatedText,
+            'agent_id' => $agent['id']
+        ];
+
+        $stmtSched = $pdo->prepare("INSERT INTO uazapi_schedule (instance_name, task_type, payload, scheduled_at, status) VALUES (?, 'message', ?, ?, ?)");
+        $stmtSched->execute([$agent['instance_name'], json_encode($apiPayload), $scheduledAt, $scheduleStatus]);
+
+        echo json_encode(['success' => true, 'message' => 'Nova mensagem gerada e agendada.']);
+        exit;
+    }
+
     if ($action === 'delete_agent') {
         $id = $input['id'] ?? 0;
         $stmt = $pdo->prepare("DELETE FROM uazapi_agents WHERE id = ?");
@@ -575,7 +639,7 @@ if (isset($_GET['action'])) {
         echo json_encode(['success' => $stmt->rowCount() > 0]);
         exit;
     }
-    }
-?>  }
+}
+?> }
 }
 ?>
