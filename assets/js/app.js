@@ -383,13 +383,23 @@ async function loadSchedules() {
                     (s.status === 'cancelled' ? '<span class="badge bg-secondary">Cancelado</span>' :
                         (s.status === 'paused' ? '<span class="badge bg-info text-dark">Aguardando Revisão</span>' : '<span class="badge bg-danger">Falhou</span>')));
 
+            let payloadDisplay = escapeHTML(s.payload);
+            try {
+                const parsed = JSON.parse(s.payload);
+                if (s.task_type === 'message' && parsed.text) {
+                    payloadDisplay = '<strong>Para: </strong>' + escapeHTML(parsed.number || '') + '<br><div class="text-muted mt-1" style="font-size:0.9em;">' + escapeHTML(parsed.text).replace(/\\n/g, '<br>') + '</div>';
+                } else if (s.task_type === 'status' && parsed.text) {
+                    payloadDisplay = '<strong>Status:</strong><br><div class="text-muted mt-1" style="font-size:0.9em;">' + escapeHTML(parsed.text).replace(/\\n/g, '<br>') + '</div>';
+                }
+            } catch (e) { }
+
             html += `<tr>
                         <td style="text-align:center;">${s.id}</td>
                         <td style="text-align:center;">${statusBadge}</td>
                         <td style="text-align:center;">${escapeHTML(s.task_type)}</td>
                         <td>${new Date(s.scheduled_at).toLocaleString()}</td>
-                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHTML(s.payload)}">${escapeHTML(s.payload)}</td>
-                        <td style="text-align:center;">
+                        <td style="white-space: normal; word-wrap: break-word; min-width: 300px; max-width: 500px;">${payloadDisplay}</td>
+                        <td style="text-align:center; min-width: 100px;">
                             ${s.status === 'paused' ? `<button class="btn btn-sm btn-success shadow-sm me-1" title="Aprovar Mensagem" onclick="approveSchedule(${s.id})"><i class="bi bi-check2"></i></button>` : ''}
                             ${s.status === 'pending' || s.status === 'paused' ? `<button class="btn btn-sm btn-outline-danger shadow-sm" title="Excluir Agendamento" onclick="deleteSchedule(${s.id})"><i class="bi bi-trash"></i></button>` : ''}
                         </td>
