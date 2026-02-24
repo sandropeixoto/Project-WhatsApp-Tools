@@ -39,7 +39,7 @@ require_once __DIR__ . '/components/sidebar.php';
                     </div>
                 </div>
 
-                <div id="send-status" class="mb-3 small fw-semibold"></div>
+                <div id="msg-status" class="mb-3 small fw-semibold"></div>
 
                 <div class="d-grid pt-2">
                     <button class="btn btn-success btn-lg fw-semibold" onclick="sendMessage()">

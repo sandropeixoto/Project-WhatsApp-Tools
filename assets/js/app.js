@@ -36,8 +36,11 @@ function switchTab(tabId, btn) {
 // --- TOGGLE STATUS FIELDS ---
 function toggleStatusFields() {
     const type = document.getElementById('status-type').value;
-    document.getElementById('status-text-fields').classList.toggle('hidden', type !== 'text');
-    document.getElementById('status-media-fields').classList.toggle('hidden', type === 'text');
+    const textSettings = document.getElementById('status-text-settings');
+    const mediaContainer = document.getElementById('status-media-container');
+
+    if (textSettings) textSettings.style.display = type === 'text' ? 'flex' : 'none';
+    if (mediaContainer) mediaContainer.style.display = type === 'text' ? 'none' : 'block';
 }
 
 // --- DADOS DE INSTÂNCIAS (cache local) ---
@@ -173,10 +176,10 @@ async function sendMessage() {
     const activeInstance = document.getElementById('instance-selector').value;
     if (!activeInstance) return alert("Selecione uma instância no topo primeiro.");
 
-    const number = document.getElementById('send-number').value.trim();
-    const text = document.getElementById('send-text').value.trim();
+    const number = document.getElementById('msg-number').value.trim();
+    const text = document.getElementById('msg-text').value.trim();
     const schedule = document.getElementById('msg-schedule').value;
-    const statusDiv = document.getElementById('send-status');
+    const statusDiv = document.getElementById('msg-status');
 
     if (!number || !text) return alert("Preencha número e mensagem.");
 
@@ -197,7 +200,7 @@ async function sendMessage() {
 
         if (res.ok) {
             statusDiv.innerHTML = schedule === 'now' ? '<span style="color: green;">✔ Enviado!</span>' : '<span style="color: green;">✔ Agendado!</span>';
-            document.getElementById('send-text').value = '';
+            document.getElementById('msg-text').value = '';
             document.getElementById('msg-schedule').value = 'now';
         } else {
             const data = await res.json().catch(() => ({}));
@@ -215,12 +218,12 @@ async function sendStatus() {
 
     const type = document.getElementById('status-type').value;
     const text = document.getElementById('status-text').value.trim();
-    const statusDiv = document.getElementById('status-send-status');
+    const statusDiv = document.getElementById('status-feedback');
 
     const payload = { instance_name: activeInstance, type, text };
 
     if (type === 'text') {
-        payload.bg_color = document.getElementById('status-bg-color').value;
+        payload.bg_color = document.getElementById('status-bg').value;
         payload.font = document.getElementById('status-font').value;
     } else {
         payload.file = document.getElementById('status-file').value.trim();
