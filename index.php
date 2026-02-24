@@ -1384,8 +1384,8 @@ if (isset($_GET['action'])) {
                         <td><span class="jid-cell" onclick="copyJid('${escapeHTML(g.jid)}')" title="Clique para copiar">${escapeHTML(g.jid)} <span class="copy-icon">📋</span></span></td>
                         <td><strong>${escapeHTML(g.name || 'Sem nome')}</strong>${g.description ? '<br><small style="color:#667781;">' + escapeHTML(g.description).substring(0, 60) + '</small>' : ''}</td>
                         <td style="text-align:center;">${g.participant_count}</td>
-                        <td style="text-align:center;"><span class="badge ${g.is_admin == 1 ? 'badge-yes' : 'badge-no'}">${g.is_admin == 1 ? '✅ Sim' : '❌ Não'}</span></td>
-                        <td style="text-align:center;"><span class="badge ${g.is_announce == 1 ? 'badge-yes' : 'badge-no'}">${g.is_announce == 1 ? 'Só Admins' : 'Todos'}</span></td>
+                        <td style="text-align:center;"><span class="${g.is_admin == 1 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${g.is_admin == 1 ? '✅ Sim' : '❌ Não'}</span></td>
+                        <td style="text-align:center;"><span class="${g.is_announce == 1 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${g.is_announce == 1 ? 'Só Admins' : 'Todos'}</span></td>
                     </tr>`;
                 });
 
