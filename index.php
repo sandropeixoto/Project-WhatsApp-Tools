@@ -496,135 +496,45 @@ if (isset($_GET['action'])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="pt-BR">
-
+<html lang="pt-BR" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Multi-Instâncias uazapiGO</title>
-    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600&display=swap" rel="stylesheet">
+    <title>WhatsApp Tools — Feed</title>
+    <!-- Bootstrap 5 CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --wa-primary: #00a884;
+            --wa-dark: #075e54;
+            --wa-teal: #128c7e;
+            --wa-bg: #f0f2f5;
+            --wa-chat-bg: #efeae2;
+        }
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #d1d7db;
-            margin: 0;
-            display: flex;
-            justify-content: center;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--wa-bg);
             height: 100vh;
             overflow: hidden;
-        }
-
-        .app-container {
-            width: 100%;
-            max-width: 1000px;
-            background: #efeae2;
-            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
             display: flex;
             flex-direction: column;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            position: relative;
         }
-
-        .header {
-            background-color: #f0f2f5;
-            padding: 15px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid #d1d7db;
-            z-index: 10;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-        }
-
-        .header img {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            margin-right: 15px;
-        }
-
-        .header-info h1 {
-            margin: 0;
-            font-size: 16px;
-            color: #111b21;
-        }
-
-        .instance-selector {
-            margin-top: 5px;
-            padding: 5px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            font-size: 13px;
-            background: white;
-            outline: none;
-            min-width: 200px;
-        }
-
-        .header-right {
-            display: flex;
-            gap: 8px;
-        }
-
-        .tools-btn {
-            background-color: #00a884;
+        .navbar-wa {
+            background: var(--wa-primary);
             color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 13px;
+            z-index: 1040;
+        }
+        
+        /* Chat Wrapper Background */
+        .chat-bg {
+            background-color: var(--wa-chat-bg);
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            background-repeat: repeat;
         }
 
-        .groups-btn {
-            background-color: #34B7F1;
-        }
-
-        .groups-btn:hover {
-            background-color: #229dd1;
-        }
-
-        /* --- TABS: Chat vs Grupos --- */
-        .tab-bar {
-            display: flex;
-            background: #f0f2f5;
-            border-bottom: 1px solid #d1d7db;
-        }
-
-        .tab-bar button {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-            color: #667781;
-            border-bottom: 2px solid transparent;
-            transition: all 0.2s;
-        }
-
-        .tab-bar button.active {
-            color: #00a884;
-            border-bottom-color: #00a884;
-        }
-
-        .tab-content {
-            display: none;
-            flex: 1;
-            overflow-y: auto;
-        }
-
-        .tab-content.active {
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* --- Chat --- */
+        /* Keep existing chat bubble CSS */
         .chat-container {
             flex: 1;
             padding: 20px;
@@ -632,21 +542,9 @@ if (isset($_GET['action'])) {
             display: flex;
             flex-direction: column;
         }
-
-        .msg-row {
-            display: flex;
-            margin-bottom: 12px;
-            width: 100%;
-        }
-
-        .msg-row.in {
-            justify-content: flex-start;
-        }
-
-        .msg-row.out {
-            justify-content: flex-end;
-        }
-
+        .msg-row { display: flex; margin-bottom: 12px; width: 100%; }
+        .msg-row.in { justify-content: flex-start; }
+        .msg-row.out { justify-content: flex-end; }
         .bubble {
             max-width: 65%;
             padding: 6px 7px 8px 9px;
@@ -656,816 +554,272 @@ if (isset($_GET['action'])) {
             display: flex;
             flex-direction: column;
         }
-
-        .bubble.in {
-            background-color: #ffffff;
-            border-top-left-radius: 0;
-        }
-
-        .bubble.out {
-            background-color: #d9fdd3;
-            border-top-right-radius: 0;
-        }
-
-        .group-header-block {
-            background: rgba(0, 0, 0, 0.04);
-            border-radius: 6px;
-            padding: 6px;
-            margin-bottom: 6px;
-        }
-
-        .info-line {
-            display: flex;
-            align-items: center;
-            margin-bottom: 4px;
-        }
-
-        .tiny-avatar {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            margin-right: 8px;
-            object-fit: cover;
-        }
-
-        .group-name {
-            font-size: 12px;
-            font-weight: 600;
-            color: #53bdeb;
-        }
-
-        .sender-name {
-            font-size: 12px;
-            font-weight: 600;
-            color: #128C7E;
-        }
-
-        .sender-phone {
-            font-size: 11px;
-            color: #667781;
-            margin-left: 4px;
-        }
-
-        .msg-text {
-            color: #111b21;
-            word-wrap: break-word;
-            white-space: pre-wrap;
-        }
-
-        .msg-image {
-            max-width: 100%;
-            border-radius: 6px;
-            margin-bottom: 4px;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-
-        .msg-image:hover {
-            opacity: 0.9;
-        }
-
-        .msg-sticker {
-            max-width: 150px;
-            max-height: 150px;
-            margin-bottom: 4px;
-        }
-
-        .msg-video {
-            max-width: 100%;
-            border-radius: 6px;
-            margin-bottom: 4px;
-            background: #000;
-        }
-
-        .msg-audio {
-            width: 100%;
-            margin-bottom: 4px;
-            height: 36px;
-        }
-
-        .msg-document {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: rgba(0, 0, 0, 0.04);
-            border-radius: 6px;
-            padding: 10px;
-            margin-bottom: 4px;
-            text-decoration: none;
-            color: #111b21;
-            transition: background 0.2s;
-        }
-
-        .msg-document:hover {
-            background: rgba(0, 0, 0, 0.08);
-        }
-
-        .doc-icon {
-            font-size: 28px;
-            flex-shrink: 0;
-        }
-
-        .doc-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .doc-name {
-            font-size: 13px;
-            font-weight: 600;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .doc-meta {
-            font-size: 11px;
-            color: #667781;
-        }
-
-        .media-placeholder {
-            background: rgba(0, 0, 0, 0.06);
-            border-radius: 6px;
-            padding: 12px;
-            text-align: center;
-            font-size: 12px;
-            color: #667781;
-            margin-bottom: 4px;
-        }
-
-        .media-placeholder span {
-            font-size: 20px;
-            display: block;
-            margin-bottom: 4px;
-        }
-
-        .media-wrapper {
-            position: relative;
-            display: inline-block;
-            max-width: 100%;
-        }
-
-        .btn-save-media {
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            background: rgba(0, 0, 0, 0.55);
-            color: white;
+        .bubble.in { background-color: #ffffff; border-top-left-radius: 0; }
+        .bubble.out { background-color: #d9fdd3; border-top-right-radius: 0; }
+        .group-header-block { background: rgba(0, 0, 0, 0.04); border-radius: 6px; padding: 6px; margin-bottom: 6px; }
+        .info-line { display: flex; align-items: center; margin-bottom: 4px; }
+        .tiny-avatar { width: 20px; height: 20px; border-radius: 50%; margin-right: 8px; object-fit: cover; }
+        .group-name { font-size: 12px; font-weight: 600; color: #53bdeb; }
+        .sender-name { font-size: 12px; font-weight: 600; color: #128C7E; }
+        .sender-phone { font-size: 11px; color: #667781; margin-left: 4px; }
+        .msg-text { color: #111b21; word-wrap: break-word; white-space: pre-wrap; }
+        .msg-image { max-width: 100%; border-radius: 6px; margin-bottom: 4px; cursor: pointer; transition: opacity 0.2s; }
+        .msg-image:hover { opacity: 0.9; }
+        .msg-sticker { max-width: 150px; max-height: 150px; margin-bottom: 4px; }
+        .msg-video { max-width: 100%; border-radius: 6px; margin-bottom: 4px; background: #000; }
+        .msg-audio { width: 100%; margin-bottom: 4px; height: 36px; }
+        .msg-document { display: flex; align-items: center; gap: 10px; background: rgba(0, 0, 0, 0.04); border-radius: 6px; padding: 10px; margin-bottom: 4px; text-decoration: none; color: #111b21; transition: background 0.2s; }
+        .msg-document:hover { background: rgba(0, 0, 0, 0.08); }
+        .doc-icon { font-size: 28px; flex-shrink: 0; }
+        .doc-info { flex: 1; min-width: 0; }
+        .doc-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .doc-meta { font-size: 11px; color: #667781; }
+        .media-placeholder { background: rgba(0, 0, 0, 0.06); border-radius: 6px; padding: 12px; text-align: center; font-size: 12px; color: #667781; margin-bottom: 4px; }
+        .media-placeholder span { font-size: 20px; display: block; margin-bottom: 4px; }
+        .media-wrapper { position: relative; display: inline-block; max-width: 100%; }
+        .btn-save-media { position: absolute; top: 6px; right: 6px; background: rgba(0, 0, 0, 0.55); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; z-index: 2; }
+        .media-wrapper:hover .btn-save-media { opacity: 1; }
+        .btn-save-media:hover { background: rgba(0, 168, 132, 0.85); }
+        .btn-save-media.saved { opacity: 1; background: rgba(0, 168, 132, 0.85); cursor: default; }
+        .btn-save-inline { background: rgba(0, 0, 0, 0.06); border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; color: #00a884; font-weight: 600; margin-left: 8px; transition: background 0.2s; }
+        .btn-save-inline:hover { background: rgba(0, 168, 132, 0.15); }
+        .btn-save-inline.saved { color: #16a34a; cursor: default; }
+        .time { font-size: 11px; color: #667781; align-self: flex-end; margin-top: -10px; margin-left: 15px; float: right; }
+        
+        /* Groups styling compatibility */
+        .groups-table { width: 100%; border-collapse: collapse; font-size: 13px; background: white; border-radius: 8px; overflow: hidden; }
+        .groups-table th { background: var(--wa-bg); padding: 12px; text-align: left; font-weight: 600; color: #667781; border-bottom: 1px solid #e0e0e0; }
+        .groups-table td { padding: 12px; border-bottom: 1px solid #f0f2f5; color: #111b21; vertical-align: middle; }
+        .groups-table tr:hover { background: #f7f8fa; }
+        .jid-cell { font-family: monospace; font-size: 12px; color: var(--wa-primary); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+        .jid-cell:hover { text-decoration: underline; }
+        
+        .tab-content { display: none; flex: 1; overflow-y: auto; }
+        .tab-content.active { display: flex; flex-direction: column; }
+        
+        .custom-nav-tabs .nav-link {
+            color: #6c757d;
             border: none;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.2s;
-            z-index: 2;
-        }
-
-        .media-wrapper:hover .btn-save-media {
-            opacity: 1;
-        }
-
-        .btn-save-media:hover {
-            background: rgba(0, 168, 132, 0.85);
-        }
-
-        .btn-save-media.saved {
-            opacity: 1;
-            background: rgba(0, 168, 132, 0.85);
-            cursor: default;
-        }
-
-        .btn-save-inline {
-            background: rgba(0, 0, 0, 0.06);
-            border: none;
-            padding: 4px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-            color: #00a884;
-            font-weight: 600;
-            margin-left: 8px;
-            transition: background 0.2s;
-        }
-
-        .btn-save-inline:hover {
-            background: rgba(0, 168, 132, 0.15);
-        }
-
-        .btn-save-inline.saved {
-            color: #16a34a;
-            cursor: default;
-        }
-
-        .time {
-            font-size: 11px;
-            color: #667781;
-            align-self: flex-end;
-            margin-top: -10px;
-            margin-left: 15px;
-            float: right;
-        }
-
-        /* --- Grupos --- */
-        .groups-container {
-            padding: 15px;
-        }
-
-        .groups-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .groups-header h3 {
-            margin: 0;
-            font-size: 14px;
-            color: #111b21;
-        }
-
-        .btn-sync-groups {
-            background: #00a884;
-            color: white;
-            border: none;
-            padding: 6px 14px;
-            border-radius: 16px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .btn-sync-groups:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .groups-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-        }
-
-        .groups-table th {
-            background: #f0f2f5;
-            padding: 10px 8px;
-            text-align: left;
-            font-weight: 600;
-            color: #667781;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        .groups-table td {
-            padding: 8px;
-            border-bottom: 1px solid #f0f2f5;
-            color: #111b21;
-            vertical-align: top;
-        }
-
-        .groups-table tr:hover {
-            background: #f7f8fa;
-        }
-
-        .jid-cell {
-            font-family: monospace;
-            font-size: 11px;
-            color: #00a884;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .jid-cell:hover {
-            text-decoration: underline;
-        }
-
-        .copy-icon {
-            font-size: 10px;
-            opacity: 0.5;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 8px;
-            font-size: 10px;
-            font-weight: 600;
-        }
-
-        .badge-yes {
-            background: #dcfce7;
-            color: #16a34a;
-        }
-
-        .badge-no {
-            background: #fee2e2;
-            color: #dc2626;
-        }
-
-        /* --- Sidebar --- */
-        .sidebar {
-            position: absolute;
-            top: 0;
-            right: -380px;
-            width: 370px;
-            height: 100%;
-            background: #f0f2f5;
-            box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
-            transition: right 0.3s ease;
-            z-index: 20;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sidebar.open {
-            right: 0;
-        }
-
-        .sidebar-header {
-            background: #00a884;
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .sidebar-header h2 {
-            margin: 0;
-            font-size: 16px;
-        }
-
-        .close-btn {
-            cursor: pointer;
-            font-size: 24px;
-        }
-
-        .sidebar-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-        }
-
-        .tool-box {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-        }
-
-        .tool-box h3 {
-            margin: 0 0 15px 0;
-            font-size: 14px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 8px;
-        }
-
-        .tool-box label {
-            font-size: 12px;
-            color: #667781;
-            margin-bottom: 4px;
-            display: block;
-            font-weight: 600;
-        }
-
-        .tool-box input,
-        .tool-box textarea,
-        .tool-box select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            box-sizing: border-box;
-            font-size: 13px;
-        }
-
-        .btn-action {
-            width: 100%;
-            background: #00a884;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .btn-sync {
-            background: #34B7F1;
-            margin-bottom: 15px;
-        }
-
-        .btn-sync:hover {
-            background: #229dd1;
-        }
-
-        .status-msg {
-            font-size: 12px;
-            margin-top: 10px;
-            text-align: center;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        /* === TELA DE SELEÇÃO DE INSTÂNCIAS === */
-        .screen-select {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            background: #f0f2f5;
-        }
-
-        .screen-select-header {
-            background: #00a884;
-            color: white;
-            padding: 20px 30px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .screen-select-header h1 {
-            margin: 0;
-            font-size: 20px;
-            font-weight: 600;
-        }
-
-        .screen-select-header .subtitle {
-            font-size: 12px;
-            opacity: 0.85;
-            margin-top: 2px;
-        }
-
-        .btn-sync-main {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-            transition: background 0.2s;
-        }
-
-        .btn-sync-main:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        .btn-sync-main:disabled {
-            opacity: 0.5;
-            cursor: default;
-        }
-
-        .instances-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-            gap: 16px;
-            padding: 24px;
-            flex: 1;
-            overflow-y: auto;
-            align-content: start;
-        }
-
-        .instance-card {
-            background: white;
-            border-radius: 12px;
-            padding: 18px;
-            cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-            border: 2px solid transparent;
-            display: flex;
-            gap: 14px;
-            align-items: center;
-        }
-
-        .instance-card:hover {
-            border-color: #00a884;
-            box-shadow: 0 4px 12px rgba(0, 168, 132, 0.15);
-            transform: translateY(-2px);
-        }
-
-        .instance-card .card-avatar {
-            width: 52px;
-            height: 52px;
-            border-radius: 50%;
-            object-fit: cover;
-            flex-shrink: 0;
-        }
-
-        .instance-card .card-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .instance-card .card-name {
-            font-weight: 700;
-            font-size: 14px;
-            color: #111;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .instance-card .card-profile {
-            font-size: 12px;
-            color: #667781;
-            margin-top: 2px;
-        }
-
-        .instance-card .card-phone {
-            font-size: 11px;
-            color: #999;
-            margin-top: 1px;
-        }
-
-        .instance-card .card-badges {
-            display: flex;
-            gap: 5px;
-            margin-top: 5px;
-            flex-wrap: wrap;
-        }
-
-        .badge {
-            font-size: 10px;
-            padding: 1px 7px;
-            border-radius: 10px;
-            font-weight: 600;
-        }
-
-        .badge-connected {
-            background: #dcfce7;
-            color: #15803d;
-        }
-
-        .badge-disconnected {
-            background: #fee2e2;
-            color: #b91c1c;
-        }
-
-        .badge-business {
-            background: #dbeafe;
-            color: #1d4ed8;
-        }
-
-        /* === TOP BAR DO FEED === */
-        .feed-topbar {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: #00a884;
-            padding: 10px 16px;
-            color: white;
-        }
-
-        .feed-topbar .topbar-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid rgba(255, 255, 255, 0.4);
-        }
-
-        .feed-topbar .topbar-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .feed-topbar .topbar-name {
-            font-weight: 700;
-            font-size: 14px;
-        }
-
-        .feed-topbar .topbar-phone {
-            font-size: 11px;
-            opacity: 0.85;
-        }
-
-        .btn-switch {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 600;
-            transition: background 0.2s;
-        }
-
-        .btn-switch:hover {
-            background: rgba(255, 255, 255, 0.3);
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+            padding: 12px 20px;
+        }
+        .custom-nav-tabs .nav-link:hover {
+            border-color: transparent;
+            color: var(--wa-primary);
+        }
+        .custom-nav-tabs .nav-link.active {
+            color: var(--wa-primary);
+            border-color: var(--wa-primary);
+            background: transparent;
         }
     </style>
 </head>
-
 <body>
 
-    <!-- ========== TELA 1: SELEÇÃO DE INSTÂNCIA ========== -->
-    <div id="screen-select" class="screen-select">
-        <div class="screen-select-header">
-            <div>
-                <h1>📱 WhatsApp Tools</h1>
-                <div class="subtitle">Selecione uma instância para gerenciar</div>
-            </div>
-            <button class="btn-sync-main" id="btn-sync-select" onclick="syncAndRefresh()">🔄 Atualizar
-                Instâncias</button>
-        </div>
-        <div class="instances-grid" id="instances-grid">
-            <div style="text-align:center;color:#999;grid-column:1/-1;padding:40px;">Carregando instâncias...</div>
-        </div>
-    </div>
-
-    <!-- ========== TELA 2: FEED DA INSTÂNCIA ========== -->
-    <div id="screen-feed" class="hidden">
-
-        <!-- Top Bar -->
-        <div class="feed-topbar">
-            <img id="topbar-avatar" class="topbar-avatar"
-                src="https://ui-avatars.com/api/?name=WA&background=128c7e&color=fff" alt="">
-            <div class="topbar-info">
-                <div class="topbar-name" id="topbar-name">Instância</div>
-                <div class="topbar-phone" id="topbar-phone"></div>
-            </div>
-            <button class="btn-switch" onclick="switchInstance()">↩ Trocar</button>
-            <button class="tools-btn" onclick="toggleSidebar()" style="margin-left:4px;">🛠 Ferramentas</button>
-        </div>
-
-        <!-- Hidden selector for backward compat -->
-        <select id="instance-selector" class="hidden"></select>
-
-        <div class="app-container" style="height:calc(100vh - 56px);">
-
-            <!-- Abas -->
-            <div class="tab-bar">
-                <button class="active" onclick="switchTab('chat', this)">💬 Conversas</button>
-                <button onclick="switchTab('groups', this)">👥 Grupos</button>
-            </div>
-
-            <!-- Tab: Conversas -->
-            <div class="tab-content active" id="tab-chat">
-                <div class="chat-container" id="monitor">
-                    <div style="text-align: center; margin: 20px 0; color: #666; font-size: 13px;">Selecione uma
-                        instância
-                        para visualizar</div>
+    <!-- Top Navbar -->
+    <nav class="navbar navbar-wa shadow-sm px-3 py-2 flex-shrink-0">
+        <div class="d-flex align-items-center w-100 justify-content-between">
+            <div class="d-flex align-items-center">
+                <img id="topbar-avatar" src="https://ui-avatars.com/api/?name=WA&background=128c7e&color=fff" 
+                     class="rounded-circle border border-2 border-white border-opacity-50 me-3" 
+                     style="width: 44px; height: 44px; object-fit: cover;" alt="">
+                <div>
+                    <div class="fw-bold lh-1 mb-1 fs-6" id="topbar-name">Carregando...</div>
+                    <div class="small text-white-50 lh-1" id="topbar-phone"></div>
                 </div>
             </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-light btn-sm fw-semibold px-3" onclick="switchInstance()">
+                    <i class="bi bi-arrow-return-left me-1"></i> Trocar
+                </button>
+                <button class="btn btn-light btn-sm fw-semibold px-3 text-success shadow-sm" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar">
+                    <i class="bi bi-tools me-1"></i> Ferramentas
+                </button>
+            </div>
+        </div>
+    </nav>
 
-            <!-- Tab: Grupos -->
-            <div class="tab-content" id="tab-groups">
-                <div class="groups-container">
-                    <div class="groups-header">
-                        <h3>Grupos da Instância</h3>
-                        <button class="btn-sync-groups" id="btn-sync-groups" onclick="syncGroups()">🔄 Atualizar
-                            Grupos</button>
+    <!-- Hidden selector for backward compat -->
+    <select id="instance-selector" class="d-none"></select>
+
+    <!-- Main Content -->
+    <main class="d-flex flex-column flex-grow-1 overflow-hidden" style="background: white;">
+        
+        <!-- Default Bootstrap Nav Tabs styled nicely -->
+        <ul class="nav custom-nav-tabs tab-bar border-bottom w-100" style="background: var(--wa-bg);">
+            <li class="nav-item flex-fill text-center">
+                <button class="nav-link w-100 active" onclick="switchTab('chat', this)">
+                    <i class="bi bi-chat-dots me-2"></i> Conversas
+                </button>
+            </li>
+            <li class="nav-item flex-fill text-center">
+                <button class="nav-link w-100" onclick="switchTab('groups', this)">
+                    <i class="bi bi-people me-2"></i> Grupos
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab: Conversas -->
+        <div class="tab-content active chat-bg" id="tab-chat">
+            <div class="chat-container w-100 mx-auto" id="monitor" style="max-width: 900px;">
+                <div class="text-center text-muted my-4 small">Carregando mensagens...</div>
+            </div>
+        </div>
+
+        <!-- Tab: Grupos -->
+        <div class="tab-content" id="tab-groups">
+            <div class="container-fluid py-4 w-100 mx-auto" style="max-width: 1000px;">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="mb-0 fw-bold">Grupos da Instância</h4>
+                    <button class="btn btn-success btn-sm w-auto fw-semibold rounded-pill px-3 shadow-sm" id="btn-sync-groups" onclick="syncGroups()">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Atualizar Grupos
+                    </button>
+                </div>
+                <div id="sync-groups-status" class="small mb-3 text-center"></div>
+                <div id="groups-list" class="table-responsive shadow-sm rounded-3">
+                    <div class="text-center text-muted py-5 bg-white border rounded">
+                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                        Clique em "Atualizar Grupos" para carregar
                     </div>
-                    <div id="sync-groups-status" class="status-msg" style="margin-bottom: 10px;"></div>
-                    <div id="groups-list">
-                        <div style="text-align: center; color: #666; font-size: 13px; padding: 30px 0;">Selecione uma
-                            instância e clique em "Atualizar Grupos"</div>
-                    </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Sidebar -->
-            <div class="sidebar" id="sidebar">
-                <div class="sidebar-header">
-                    <h2>Painel de Controle</h2>
-                    <div class="close-btn" onclick="toggleSidebar()">&times;</div>
-                </div>
+    </main>
 
-                <div class="sidebar-content">
-
-
-                    <!-- Enviar Mensagem -->
-                    <div class="tool-box">
-                        <h3>💬 Enviar Mensagem</h3>
-                        <label>Número Destino</label>
-                        <input type="text" id="send-number" placeholder="Ex: 5511999999999">
-                        <label>Mensagem</label>
-                        <textarea id="send-text" style="height: 60px;" placeholder="Mensagem..."></textarea>
-
-                        <label>⏰ Quando enviar</label>
-                        <select id="msg-schedule" style="margin-bottom: 8px;">
-                            <option value="now">🟢 Agora</option>
+    <!-- Sidebar Offcanvas -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="sidebar">
+        <div class="offcanvas-header text-white" style="background: var(--wa-primary);">
+            <h5 class="offcanvas-title fw-bold"><i class="bi bi-sliders text-white-50 me-2"></i> Painel de Controle</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body" style="background: var(--wa-bg);">
+            
+            <!-- Send Message Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h6 class="card-title fw-bold mb-3 d-flex align-items-center border-bottom pb-2">
+                        <i class="bi bi-chat-text text-success me-2 fs-5"></i> Enviar Mensagem
+                    </h6>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted fw-semibold">Número Destino</label>
+                        <input type="text" class="form-control form-control-sm" id="send-number" placeholder="Ex: 5511999999999">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted fw-semibold">Mensagem</label>
+                        <textarea class="form-control form-control-sm" id="send-text" rows="3" placeholder="Sua mensagem..."></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label small text-muted fw-semibold"><i class="bi bi-clock me-1"></i> Agendamento</label>
+                        <select class="form-select form-select-sm" id="msg-schedule">
+                            <option value="now">🟢 Enviar Agora</option>
                             <option value="+5min">Daqui a 5 minutos</option>
                             <option value="+10min">Daqui a 10 minutos</option>
                             <option value="+30min">Daqui a 30 minutos</option>
                             <option value="+1hour">Daqui a 1 hora</option>
                             <option value="+2hours">Daqui a 2 horas</option>
-                            <option value="tomorrow_8">🌅 Amanhã cedo (8h)</option>
+                            <option value="tomorrow_8">🌅 Amanhã às 8h</option>
                             <option value="tomorrow_same">🔄 Amanhã neste horário</option>
                         </select>
-
-                        <button class="btn-action" onclick="sendMessage()" id="btn-send">Enviar</button>
-                        <div id="send-status" class="status-msg"></div>
                     </div>
+                    <button class="btn btn-success w-100 fw-bold shadow-sm" onclick="sendMessage()" id="btn-send">
+                        <i class="bi bi-send me-1"></i> Enviar
+                    </button>
+                    <div id="send-status" class="mt-2 text-center small fw-medium"></div>
+                </div>
+            </div>
 
-                    <!-- Enviar Status/Stories -->
-                    <div class="tool-box">
-                        <h3>📸 Enviar Status / Stories</h3>
-                        <label>Tipo</label>
-                        <select id="status-type" onchange="toggleStatusFields()">
+            <!-- Send Status Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h6 class="card-title fw-bold mb-3 d-flex align-items-center border-bottom pb-2">
+                        <i class="bi bi-circle text-primary me-2 fs-5"></i> Publicar Status
+                    </h6>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted fw-semibold">Tipo</label>
+                        <select class="form-select form-select-sm" id="status-type" onchange="toggleStatusFields()">
                             <option value="text">Texto</option>
                             <option value="image">Imagem</option>
                             <option value="video">Vídeo</option>
                             <option value="audio">Áudio</option>
                         </select>
+                    </div>
 
-                        <div id="status-text-fields">
-                            <label>Cor de Fundo</label>
-                            <select id="status-bg-color">
+                    <div id="status-text-fields" class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small text-muted fw-semibold">Fundo</label>
+                            <select class="form-select form-select-sm" id="status-bg-color">
                                 <option value="1">Amarelo 1</option>
-                                <option value="2">Amarelo 2</option>
-                                <option value="3">Amarelo 3</option>
                                 <option value="4">Verde 1</option>
-                                <option value="5">Verde 2</option>
-                                <option value="6">Verde 3</option>
                                 <option value="7">Azul 1</option>
-                                <option value="8">Azul 2</option>
-                                <option value="9">Azul 3</option>
                                 <option value="10">Lilás 1</option>
-                                <option value="11">Lilás 2</option>
-                                <option value="12">Lilás 3</option>
                                 <option value="13">Magenta</option>
-                                <option value="14">Rosa 1</option>
-                                <option value="15">Rosa 2</option>
                                 <option value="16">Marrom</option>
-                                <option value="17">Cinza 1</option>
-                                <option value="18">Cinza 2</option>
-                                <option value="19" selected>Cinza 3 (padrão)</option>
+                                <option value="19" selected>Cinza Escuro</option>
                             </select>
-                            <label>Fonte</label>
-                            <select id="status-font">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small text-muted fw-semibold">Fonte</label>
+                            <select class="form-select form-select-sm" id="status-font">
                                 <option value="0">Padrão</option>
                                 <option value="1" selected>Estilo 1</option>
                                 <option value="2">Estilo 2</option>
-                                <option value="3">Estilo 3</option>
-                                <option value="4">Estilo 4</option>
-                                <option value="5">Estilo 5</option>
-                                <option value="6">Estilo 6</option>
-                                <option value="7">Estilo 7</option>
-                                <option value="8">Estilo 8</option>
                             </select>
                         </div>
+                    </div>
 
-                        <div id="status-media-fields" class="hidden">
-                            <label>URL do arquivo</label>
-                            <input type="text" id="status-file" placeholder="https://exemplo.com/imagem.jpg">
-                        </div>
+                    <div id="status-media-fields" class="mb-3 d-none">
+                        <label class="form-label small text-muted fw-semibold">URL da Mídia</label>
+                        <input type="text" class="form-control form-control-sm" id="status-file" placeholder="https://exemplo.com/midia.jpg">
+                    </div>
 
-                        <label>Texto / Legenda</label>
-                        <textarea id="status-text" style="height: 60px;" placeholder="Texto do status..."></textarea>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted fw-semibold">Texto / Legenda</label>
+                        <textarea class="form-control form-control-sm" id="status-text" rows="2" placeholder="O que está acontecendo?"></textarea>
+                    </div>
 
-                        <label>⏰ Quando enviar</label>
-                        <select id="status-schedule" style="margin-bottom: 8px;">
-                            <option value="now">🟢 Agora</option>
+                    <div class="mb-4">
+                        <label class="form-label small text-muted fw-semibold"><i class="bi bi-clock me-1"></i> Agendamento</label>
+                        <select class="form-select form-select-sm" id="status-schedule">
+                            <option value="now">🟢 Publicar Agora</option>
                             <option value="+5min">Daqui a 5 minutos</option>
-                            <option value="+10min">Daqui a 10 minutos</option>
                             <option value="+30min">Daqui a 30 minutos</option>
                             <option value="+1hour">Daqui a 1 hora</option>
-                            <option value="+2hours">Daqui a 2 horas</option>
-                            <option value="tomorrow_8">🌅 Amanhã cedo (8h)</option>
-                            <option value="tomorrow_same">🔄 Amanhã neste horário</option>
+                            <option value="tomorrow_8">🌅 Amanhã às 8h</option>
                         </select>
-
-                        <button class="btn-action" onclick="sendStatus()" id="btn-send-status">Publicar Status</button>
-                        <div id="status-send-status" class="status-msg"></div>
                     </div>
 
-                    <!-- Agendamentos Pendentes -->
-                    <div class="tool-box">
-                        <h3>📅 Agendamentos</h3>
-                        <button class="btn-action" onclick="loadSchedules()"
-                            style="background:#34B7F1;margin-bottom:8px;font-size:12px;padding:6px 12px;">🔄
-                            Atualizar</button>
-                        <div id="schedules-list" style="font-size:12px;">Clique em Atualizar para ver.</div>
-                    </div>
+                    <button class="btn btn-primary w-100 fw-bold shadow-sm" onclick="sendStatus()" id="btn-send-status">
+                        <i class="bi bi-broadcast me-1"></i> Publicar Status
+                    </button>
+                    <div id="status-send-status" class="mt-2 text-center small fw-medium"></div>
+                </div>
+            </div>
 
+            <!-- Schedules Sync Card -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title fw-bold mb-3 d-flex align-items-center border-bottom pb-2">
+                        <i class="bi bi-calendar-event text-info me-2 fs-5"></i> Agendamentos Ativos
+                    </h6>
+                    <button class="btn btn-outline-info btn-sm w-100 fw-semibold mb-3" onclick="loadSchedules()">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Atualizar Lista
+                    </button>
+                    <div id="schedules-list" class="small text-muted text-center pt-2">Clique em Atualizar para buscar.</div>
                 </div>
             </div>
 
         </div>
     </div>
 
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+
         let lastLogsString = '';
 
-        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+        // toggleSidebar handled by Bootstrap offcanvas
         function escapeHTML(str) { if (!str) return ''; return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])); }
         function formatTime(timestamp) { return new Date(timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); }
 
@@ -1561,7 +915,17 @@ if (isset($_GET['action'])) {
                 const res = await fetch('index.php?action=sync_instances');
                 const data = await res.json();
                 if (res.ok) {
-                    await loadInstances();
+                    await         async function initFeed() {
+            try {
+                const res = await fetch('index.php?action=get_instances');
+                instancesData = await res.json();
+                const instanceName = "<?= htmlspecialchars($activeInstanceName) ?>";
+                selectInstance(instanceName);
+            } catch (e) {
+                console.error("Erro ao carregar metadados da instância.");
+            }
+        }
+        initFeed();
                 }
             } catch (e) {
                 // silently fail
@@ -1588,8 +952,8 @@ if (isset($_GET['action'])) {
             selector.value = name;
 
             // Trocar telas
-            document.getElementById('screen-select').classList.add('hidden');
-            document.getElementById('screen-feed').classList.remove('hidden');
+            // document.getElementById('screen-select').classList.add('hidden');
+            // document.getElementById('screen-feed').classList.remove('hidden');
 
             // Limpar e carregar
             document.getElementById('monitor').innerHTML = '<div style="text-align: center; margin: 20px 0; color: #666; font-size: 13px;">Carregando mensagens...</div>';
@@ -1603,12 +967,7 @@ if (isset($_GET['action'])) {
 
         // --- TROCAR DE INSTÂNCIA (voltar para seleção) ---
         function switchInstance() {
-            if (logsInterval) { clearInterval(logsInterval); logsInterval = null; }
-            document.getElementById('screen-feed').classList.add('hidden');
-            document.getElementById('screen-select').classList.remove('hidden');
-            document.getElementById('sidebar').classList.remove('open');
-            lastLogsString = '';
-            loadInstances(); // refresh cards
+            window.location.href = 'instances.php';
         }
 
         function changeInstance() {
@@ -1970,8 +1329,18 @@ if (isset($_GET['action'])) {
         }
 
         // Inicia carregando as instâncias para a tela de seleção
-        loadInstances();
+                async function initFeed() {
+            try {
+                const res = await fetch('index.php?action=get_instances');
+                instancesData = await res.json();
+                const instanceName = "<?= htmlspecialchars($activeInstanceName) ?>";
+                selectInstance(instanceName);
+            } catch (e) {
+                console.error("Erro ao carregar metadados da instância.");
+            }
+        }
+        initFeed();
+    
     </script>
 </body>
-
 </html>
