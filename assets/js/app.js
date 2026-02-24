@@ -845,14 +845,13 @@ async function createAgent() {
             }
         } else {
             alert("Erro ao " + (id ? "editar" : "criar") + " agente: " + (data.error || "Falha desconhecida."));
-            btnSave.disabled = false;
-            btnSave.innerHTML = id ? '<i class="bi bi-check2-circle me-1"></i>Salvar Alterações' : '<i class="bi bi-check2-circle me-1"></i>Criar Agente';
         }
     } catch (e) {
         alert("Erro de comunicação ao gravar agente.");
         console.error(e);
+    } finally {
         btnSave.disabled = false;
-        btnSave.innerHTML = id ? '<i class="bi bi-check2-circle me-1"></i>Salvar Alterações' : '<i class="bi bi-check2-circle me-1"></i>Criar Agente';
+        btnSave.innerHTML = `<i class="bi bi-check2-circle me-1"></i><span id="agent-btn-text">${id ? 'Salvar Alterações' : 'Criar Agente'}</span>`;
     }
 }
 

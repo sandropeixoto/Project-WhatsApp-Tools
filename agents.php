@@ -121,9 +121,12 @@ require_once __DIR__ . '/components/sidebar.php';
 
         const newAgentModal = document.getElementById('newAgentModal');
         if (newAgentModal) {
-            newAgentModal.addEventListener('hidden.bs.modal', funcent-form').reset();
-                document.getElementBlementById('agent-modal-title').textContent = 'Criar Novo Agente';
-                document.getElementById('agent-btn-text').textContent = 'Criar Agente';
+            newAgentModal.addEventListener('hidden.bs.modal', function () {
+                document.getElementById('new-ayId('agent-id').value = '';
+                const titleSpan = document.getElementById('agent-modal-title');
+                const btnSpan = document.getElementById('agent-btn-text');
+                if (titleSpan) titleSpan.textContent = 'Criar Novo Agente';
+                if (btnSpan) btnSpan.textContent = 'Criar Agente';
             });
         }
 
