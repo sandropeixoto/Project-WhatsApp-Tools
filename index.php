@@ -220,6 +220,69 @@ if (isset($_GET['action'])) {
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit;
     }
+
+    // 8. Salvar mídia localmente no servidor
+    if ($action === 'save_media') {
+        $fileUrl = $input['file_url'] ?? '';
+        $fileName = $input['file_name'] ?? '';
+        $msgType = $input['msg_type'] ?? '';
+
+        if (empty($fileUrl)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'URL do arquivo não informada.']);
+            exit;
+        }
+
+        $mediaDir = __DIR__ . '/media';
+        if (!is_dir($mediaDir)) {
+            mkdir($mediaDir, 0777, true);
+        }
+
+        // Determinar extensão pelo tipo ou URL
+        $ext = '';
+        if (!empty($fileName)) {
+            $ext = pathinfo($fileName, PATHINFO_EXTENSION);
+        }
+        if (empty($ext)) {
+            $urlPath = parse_url($fileUrl, PHP_URL_PATH);
+            $ext = pathinfo($urlPath, PATHINFO_EXTENSION);
+        }
+        if (empty($ext)) {
+            $extMap = [
+                'ImageMessage' => 'jpg', 'StickerMessage' => 'webp',
+                'VideoMessage' => 'mp4', 'GifMessage' => 'gif',
+                'AudioMessage' => 'mp3', 'PTTMessage' => 'ogg',
+                'DocumentMessage' => 'bin'
+            ];
+            $ext = $extMap[$msgType] ?? 'bin';
+        }
+
+        $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', pathinfo($fileName ?: 'media', PATHINFO_FILENAME));
+        $localFileName = date('Ymd_His') . '_' . $safeName . '.' . $ext;
+        $localPath = $mediaDir . '/' . $localFileName;
+
+        // Baixar o arquivo
+        $ch = curl_init($fileUrl);
+        $fp = fopen($localPath, 'wb');
+        curl_setopt($ch, CURLOPT_FILE, $fp);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        $success = curl_exec($ch);
+        $dlCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        fclose($fp);
+
+        if ($success && $dlCode === 200 && filesize($localPath) > 0) {
+            $publicUrl = 'media/' . $localFileName;
+            echo json_encode(['success' => true, 'local_url' => $publicUrl, 'file_name' => $localFileName]);
+        }
+        else {
+            @unlink($localPath);
+            http_response_code(500);
+            echo json_encode(['error' => 'Falha ao baixar o arquivo.', 'http_code' => $dlCode]);
+        }
+        exit;
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -524,6 +587,68 @@ if (isset($_GET['action'])) {
             font-size: 20px;
             display: block;
             margin-bottom: 4px;
+        }
+
+        .media-wrapper {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+        }
+
+        .btn-save-media {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: rgba(0, 0, 0, 0.55);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 2;
+        }
+
+        .media-wrapper:hover .btn-save-media {
+            opacity: 1;
+        }
+
+        .btn-save-media:hover {
+            background: rgba(0, 168, 132, 0.85);
+        }
+
+        .btn-save-media.saved {
+            opacity: 1;
+            background: rgba(0, 168, 132, 0.85);
+            cursor: default;
+        }
+
+        .btn-save-inline {
+            background: rgba(0, 0, 0, 0.06);
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            color: #00a884;
+            font-weight: 600;
+            margin-left: 8px;
+            transition: background 0.2s;
+        }
+
+        .btn-save-inline:hover {
+            background: rgba(0, 168, 132, 0.15);
+        }
+
+        .btn-save-inline.saved {
+            color: #16a34a;
+            cursor: default;
         }
 
         .time {
@@ -1144,6 +1269,44 @@ if (isset($_GET['action'])) {
             });
         }
 
+        // --- SALVAR MÍDIA NO SERVIDOR ---
+        async function saveMedia(btn) {
+            if (btn.classList.contains('saved')) return;
+
+            const fileUrl = btn.getAttribute('data-url');
+            const fileName = btn.getAttribute('data-name') || '';
+            const msgType = btn.getAttribute('data-type') || '';
+
+            if (!fileUrl) return alert('URL do arquivo não disponível.');
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('index.php?action=save_media', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file_url: fileUrl, file_name: fileName, msg_type: msgType })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    btn.innerHTML = '✅';
+                    btn.classList.add('saved');
+                    btn.title = 'Salvo: ' + data.file_name;
+                } else {
+                    btn.innerHTML = '❌';
+                    setTimeout(() => { btn.innerHTML = originalText; btn.disabled = false; }, 2000);
+                    alert('Erro ao salvar: ' + (data.error || 'Falha'));
+                }
+            } catch (e) {
+                btn.innerHTML = '❌';
+                setTimeout(() => { btn.innerHTML = originalText; btn.disabled = false; }, 2000);
+                alert('Falha de comunicação ao salvar.');
+            }
+        }
+
         // --- RENDERIZAÇÃO DA CONVERSA ---
         async function fetchLogs() {
             const activeInstance = document.getElementById('instance-selector').value;
@@ -1183,15 +1346,20 @@ if (isset($_GET['action'])) {
                     const fileURL = msg.fileURL || '';
                     const mimetype = (typeof content === 'object' ? content.Mimetype : '') || '';
 
+                    const saveData = fileURL ? `data-url="${escapeHTML(fileURL)}"` : '';
+                    const saveName = (typeof content === 'object' && content.FileName) ? `data-name="${escapeHTML(content.FileName)}"` : '';
+                    const saveType = `data-type="${msg.messageType}"`;
+                    const saveBtn = fileURL ? `<button class="btn-save-media" onclick="saveMedia(this)" ${saveData} ${saveName} ${saveType} title="Salvar no servidor">💾</button>` : '';
+
                     if (msg.messageType === 'ImageMessage') {
                         if (fileURL) {
-                            mediaHtml = `<img src="${fileURL}" class="msg-image" alt="Imagem" loading="lazy" onclick="window.open('${fileURL}','_blank')">`;
+                            mediaHtml = `<div class="media-wrapper">${saveBtn}<img src="${fileURL}" class="msg-image" alt="Imagem" loading="lazy" onclick="window.open('${fileURL}','_blank')"></div>`;
                         } else if (content.JPEGThumbnail) {
                             mediaHtml = `<img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-image" alt="Imagem (miniatura)">`;
                         }
                     } else if (msg.messageType === 'StickerMessage') {
                         if (fileURL) {
-                            mediaHtml = `<img src="${fileURL}" class="msg-sticker" alt="Sticker">`;
+                            mediaHtml = `<div class="media-wrapper">${saveBtn}<img src="${fileURL}" class="msg-sticker" alt="Sticker"></div>`;
                         } else if (content.JPEGThumbnail) {
                             mediaHtml = `<img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-sticker" alt="Sticker">`;
                         } else {
@@ -1199,7 +1367,7 @@ if (isset($_GET['action'])) {
                         }
                     } else if (msg.messageType === 'VideoMessage') {
                         if (fileURL) {
-                            mediaHtml = `<video class="msg-video" controls preload="metadata" poster="${content.JPEGThumbnail ? 'data:image/jpeg;base64,' + content.JPEGThumbnail : ''}"><source src="${fileURL}" type="${mimetype || 'video/mp4'}">Vídeo</video>`;
+                            mediaHtml = `<div class="media-wrapper">${saveBtn}<video class="msg-video" controls preload="metadata" poster="${content.JPEGThumbnail ? 'data:image/jpeg;base64,' + content.JPEGThumbnail : ''}"><source src="${fileURL}" type="${mimetype || 'video/mp4'}">Vídeo</video></div>`;
                         } else if (content.JPEGThumbnail) {
                             mediaHtml = `<div style="position:relative;cursor:pointer" title="Vídeo"><img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-image" alt="Vídeo"><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.6);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:white;font-size:18px">▶</div></div>`;
                         } else {
@@ -1207,10 +1375,9 @@ if (isset($_GET['action'])) {
                         }
                     } else if (msg.messageType === 'AudioMessage' || msg.messageType === 'PTTMessage') {
                         if (fileURL) {
-                            mediaHtml = `<audio class="msg-audio" controls preload="metadata"><source src="${fileURL}" type="${mimetype || 'audio/ogg'}">Áudio</audio>`;
+                            mediaHtml = `<div style="display:flex;align-items:center;gap:6px;"><audio class="msg-audio" controls preload="metadata" style="flex:1"><source src="${fileURL}" type="${mimetype || 'audio/ogg'}">Áudio</audio><button class="btn-save-inline" onclick="saveMedia(this)" ${saveData} ${saveName} ${saveType} title="Salvar no servidor">💾</button></div>`;
                         } else {
-                            mediaHtml = `<div class="media-placeholder"><span>🎵</span>Áudio${msg.messageType 'PTe' ? ' (voz)' : ''
-                        }</div > `;
+                            mediaHtml = `<div class="media-placeholder"><span>🎵</span>Áudio${msg.messageType === 'PTTMessage' ? ' (voz)' : ''}</div>`;
                         }
                     } else if (msg.messageType === 'DocumentMessage') {
                         const fileName = (typeof content === 'object' ? content.FileName : '') || 'documento';
@@ -1218,15 +1385,15 @@ if (isset($_GET['action'])) {
                         const sizeStr = fileSize > 0 ? formatFileSize(fileSize) : '';
                         const docIcon = getDocIcon(mimetype, fileName);
                         if (fileURL) {
-                            mediaHtml = `< a href = "${fileURL}" target = "_blank" class="msg-document" download ><span class="doc-icon">${docIcon}</span><div class="doc-info"><div class="doc-name">${escapeHTML(fileName)}</div><div class="doc-meta">${escapeHTML(mimetype)}${sizeStr ? ' • ' + sizeStr : ''}</div></div></a > `;
+                            mediaHtml = `<a href="${fileURL}" target="_blank" class="msg-document" download><span class="doc-icon">${docIcon}</span><div class="doc-info"><div class="doc-name">${escapeHTML(fileName)}</div><div class="doc-meta">${escapeHTML(mimetype)}${sizeStr ? ' • ' + sizeStr : ''}</div></div></a><button class="btn-save-inline" onclick="event.preventDefault();saveMedia(this)" ${saveData} data-name="${escapeHTML(fileName)}" ${saveType} title="Salvar no servidor">💾 Salvar</button>`;
                         } else {
-                            mediaHtml = `< div class="msg-document" ><span class="doc-icon">${docIcon}</span><div class="doc-info"><div class="doc-name">${escapeHTML(fileName)}</div><div class="doc-meta">${escapeHTML(mimetype)}${sizeStr ? ' • ' + sizeStr : ''}</div></div></div > `;
+                            mediaHtml = `<div class="msg-document"><span class="doc-icon">${docIcon}</span><div class="doc-info"><div class="doc-name">${escapeHTML(fileName)}</div><div class="doc-meta">${escapeHTML(mimetype)}${sizeStr ? ' • ' + sizeStr : ''}</div></div></div>`;
                         }
                     } else if (msg.messageType === 'GifMessage') {
                         if (fileURL) {
-                            mediaHtml = `< img src = "${fileURL}" class="msg-image" alt = "GIF" loading = "lazy" > `;
+                            mediaHtml = `<div class="media-wrapper">${saveBtn}<img src="${fileURL}" class="msg-image" alt="GIF" loading="lazy"></div>`;
                         } else if (content.JPEGThumbnail) {
-                            mediaHtml = `< div style = "position:relative" > <img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-image" alt="GIF"><div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.6);color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold">GIF</div></div>`;
+                            mediaHtml = `<div style="position:relative"><img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-image" alt="GIF"><div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.6);color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold">GIF</div></div>`;
                         }
                     }
 
@@ -1251,7 +1418,7 @@ if (isset($_GET['action'])) {
                     } else if (!isFromMe) {
                         const contactName = msg.senderName || chatInfo.name || "Contato";
                         const contactPhone = chatInfo.phone || (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
-                        headerHtml = `< div style = "margin-bottom: 5px;" > <span class="sender-name">${escapeHTML(contactName)}</span> ${ contactPhone ? `<span class="sender-phone">(${contactPhone})</span>` : '' }</div > `;
+                        headerHtml = `< div style = "margin-bottom: 5px;" > <span class="sender-name">${escapeHTML(contactName)}</span> ${contactPhone ? `<span class="sender-phone">(${contactPhone})</span>` : ''}</div > `;
                     }
 
                     let html = `
