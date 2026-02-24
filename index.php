@@ -443,6 +443,87 @@ if (isset($_GET['action'])) {
             max-width: 100%;
             border-radius: 6px;
             margin-bottom: 4px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .msg-image:hover {
+            opacity: 0.9;
+        }
+
+        .msg-sticker {
+            max-width: 150px;
+            max-height: 150px;
+            margin-bottom: 4px;
+        }
+
+        .msg-video {
+            max-width: 100%;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            background: #000;
+        }
+
+        .msg-audio {
+            width: 100%;
+            margin-bottom: 4px;
+            height: 36px;
+        }
+
+        .msg-document {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.04);
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 4px;
+            text-decoration: none;
+            color: #111b21;
+            transition: background 0.2s;
+        }
+
+        .msg-document:hover {
+            background: rgba(0, 0, 0, 0.08);
+        }
+
+        .doc-icon {
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+
+        .doc-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .doc-name {
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .doc-meta {
+            font-size: 11px;
+            color: #667781;
+        }
+
+        .media-placeholder {
+            background: rgba(0, 0, 0, 0.06);
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+            font-size: 12px;
+            color: #667781;
+            margin-bottom: 4px;
+        }
+
+        .media-placeholder span {
+            font-size: 20px;
+            display: block;
+            margin-bottom: 4px;
         }
 
         .time {
@@ -811,6 +892,24 @@ if (isset($_GET['action'])) {
         function escapeHTML(str) { if (!str) return ''; return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])); }
         function formatTime(timestamp) { return new Date(timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); }
 
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        function getDocIcon(mimetype, fileName) {
+            const ext = (fileName || '').split('.').pop().toLowerCase();
+            const m = (mimetype || '').toLowerCase();
+            if (m.includes('pdf') || ext === 'pdf') return '📄';
+            if (m.includes('spreadsheet') || m.includes('excel') || ['xls', 'xlsx', 'csv'].includes(ext)) return '📊';
+            if (m.includes('presentation') || m.includes('powerpoint') || ['ppt', 'pptx'].includes(ext)) return '📑';
+            if (m.includes('word') || m.includes('document') || ['doc', 'docx'].includes(ext)) return '📝';
+            if (m.includes('zip') || m.includes('rar') || m.includes('compressed')) return '🗜️';
+            if (m.includes('text')) return '📃';
+            return '📎';
+        }
+
         // --- TABS ---
         function switchTab(tabId, btn) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -1080,8 +1179,55 @@ if (isset($_GET['action'])) {
                     const time = formatTime(msg.messageTimestamp);
 
                     let mediaHtml = '';
-                    if (msg.messageType === 'ImageMessage' && msg.content && msg.content.JPEGThumbnail) {
-                        mediaHtml = `<img src="data:image/jpeg;base64,${msg.content.JPEGThumbnail}" class="msg-image" alt="Imagem">`;
+                    const content = msg.content || {};
+                    const fileURL = msg.fileURL || '';
+                    const mimetype = (typeof content === 'object' ? content.Mimetype : '') || '';
+
+                    if (msg.messageType === 'ImageMessage') {
+                        if (fileURL) {
+                            mediaHtml = `<img src="${fileURL}" class="msg-image" alt="Imagem" loading="lazy" onclick="window.open('${fileURL}','_blank')">`;
+                        } else if (content.JPEGThumbnail) {
+                            mediaHtml = `<img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-image" alt="Imagem (miniatura)">`;
+                        }
+                    } else if (msg.messageType === 'StickerMessage') {
+                        if (fileURL) {
+                            mediaHtml = `<img src="${fileURL}" class="msg-sticker" alt="Sticker">`;
+                        } else if (content.JPEGThumbnail) {
+                            mediaHtml = `<img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-sticker" alt="Sticker">`;
+                        } else {
+                            mediaHtml = `<div class="media-placeholder"><span>🎨</span>Sticker</div>`;
+                        }
+                    } else if (msg.messageType === 'VideoMessage') {
+                        if (fileURL) {
+                            mediaHtml = `<video class="msg-video" controls preload="metadata" poster="${content.JPEGThumbnail ? 'data:image/jpeg;base64,' + content.JPEGThumbnail : ''}"><source src="${fileURL}" type="${mimetype || 'video/mp4'}">Vídeo</video>`;
+                        } else if (content.JPEGThumbnail) {
+                            mediaHtml = `<div style="position:relative;cursor:pointer" title="Vídeo"><img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-image" alt="Vídeo"><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.6);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:white;font-size:18px">▶</div></div>`;
+                        } else {
+                            mediaHtml = `<div class="media-placeholder"><span>🎬</span>Vídeo</div>`;
+                        }
+                    } else if (msg.messageType === 'AudioMessage' || msg.messageType === 'PTTMessage') {
+                        if (fileURL) {
+                            mediaHtml = `<audio class="msg-audio" controls preload="metadata"><source src="${fileURL}" type="${mimetype || 'audio/ogg'}">Áudio</audio>`;
+                        } else {
+                            mediaHtml = `<div class="media-placeholder"><span>🎵</span>Áudio${msg.messageType 'PTe' ? ' (voz)' : ''
+                        }</div > `;
+                        }
+                    } else if (msg.messageType === 'DocumentMessage') {
+                        const fileName = (typeof content === 'object' ? content.FileName : '') || 'documento';
+                        const fileSize = (typeof content === 'object' ? content.FileLength : 0) || 0;
+                        const sizeStr = fileSize > 0 ? formatFileSize(fileSize) : '';
+                        const docIcon = getDocIcon(mimetype, fileName);
+                        if (fileURL) {
+                            mediaHtml = `< a href = "${fileURL}" target = "_blank" class="msg-document" download ><span class="doc-icon">${docIcon}</span><div class="doc-info"><div class="doc-name">${escapeHTML(fileName)}</div><div class="doc-meta">${escapeHTML(mimetype)}${sizeStr ? ' • ' + sizeStr : ''}</div></div></a > `;
+                        } else {
+                            mediaHtml = `< div class="msg-document" ><span class="doc-icon">${docIcon}</span><div class="doc-info"><div class="doc-name">${escapeHTML(fileName)}</div><div class="doc-meta">${escapeHTML(mimetype)}${sizeStr ? ' • ' + sizeStr : ''}</div></div></div > `;
+                        }
+                    } else if (msg.messageType === 'GifMessage') {
+                        if (fileURL) {
+                            mediaHtml = `< img src = "${fileURL}" class="msg-image" alt = "GIF" loading = "lazy" > `;
+                        } else if (content.JPEGThumbnail) {
+                            mediaHtml = `< div style = "position:relative" > <img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-image" alt="GIF"><div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.6);color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold">GIF</div></div>`;
+                        }
                     }
 
                     let headerHtml = '';
@@ -1092,7 +1238,7 @@ if (isset($_GET['action'])) {
                         let senderPhone = isFromMe ? activeInstance : (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
 
                         headerHtml = `
-                            <div class="group-header-block">
+                            < div class="group-header-block" >
                                 <div class="info-line">
                                     <img src="${groupImage}" class="tiny-avatar" alt="G">
                                     <span class="group-name">${escapeHTML(groupName)}</span>
@@ -1100,23 +1246,23 @@ if (isset($_GET['action'])) {
                                 <div class="info-line">
                                     <span class="sender-name">${escapeHTML(senderName)} <span class="sender-phone">(${senderPhone})</span></span>
                                 </div>
-                            </div>
-                        `;
+                            </div >
+                            `;
                     } else if (!isFromMe) {
                         const contactName = msg.senderName || chatInfo.name || "Contato";
                         const contactPhone = chatInfo.phone || (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
-                        headerHtml = `<div style="margin-bottom: 5px;"><span class="sender-name">${escapeHTML(contactName)}</span> ${contactPhone ? `<span class="sender-phone">(${contactPhone})</span>` : ''}</div>`;
+                        headerHtml = `< div style = "margin-bottom: 5px;" > <span class="sender-name">${escapeHTML(contactName)}</span> ${ contactPhone ? `<span class="sender-phone">(${contactPhone})</span>` : '' }</div > `;
                     }
 
                     let html = `
-                        <div class="msg-row ${alignClass}">
-                            <div class="bubble ${alignClass}">
-                                ${headerHtml}
-                                ${mediaHtml}
-                                <div class="msg-text">${escapeHTML(msg.text || '')}</div>
-                                <div class="time" style="margin-top: 5px;">${time} ${isFromMe ? '✓' : ''}</div>
-                            </div>
-                        </div>
+                            < div class="msg-row ${alignClass}" >
+                                <div class="bubble ${alignClass}">
+                                    ${headerHtml}
+                                    ${mediaHtml}
+                                    <div class="msg-text">${escapeHTML(msg.text || '')}</div>
+                                    <div class="time" style="margin-top: 5px;">${time} ${isFromMe ? '✓' : ''}</div>
+                                </div>
+                        </div >
                     `;
                     monitorDiv.innerHTML += html;
                 });
