@@ -15,6 +15,30 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     echo "✅ Tabela uazapi_instances OK.\n";
 
+    // Adicionar colunas de perfil em uazapi_instances (idempotente)
+    $instanceCols = [
+        'status' => "VARCHAR(20) DEFAULT 'disconnected'",
+        'profile_name' => 'VARCHAR(255) DEFAULT NULL',
+        'profile_pic_url' => 'TEXT DEFAULT NULL',
+        'phone_number' => 'VARCHAR(50) DEFAULT NULL',
+        'is_business' => 'TINYINT(1) DEFAULT 0',
+        'platform' => 'VARCHAR(50) DEFAULT NULL',
+    ];
+    foreach ($instanceCols as $col => $def) {
+        try {
+            $pdo->exec("ALTER TABLE uazapi_instances ADD COLUMN {$col} {$def}");
+            echo "  ✅ Coluna instances.{$col} adicionada.\n";
+        }
+        catch (PDOException $e) {
+            if (str_contains($e->getMessage(), 'Duplicate column')) {
+                echo "  ⏭️  Coluna instances.{$col} já existe.\n";
+            }
+            else {
+                echo "  ❌ Erro em instances.{$col}: " . $e->getMessage() . "\n";
+            }
+        }
+    }
+
     // Criar tabela uazapi_logs (versão básica)
     $pdo->exec("CREATE TABLE IF NOT EXISTS uazapi_logs (
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,

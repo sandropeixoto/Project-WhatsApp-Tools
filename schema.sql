@@ -3,7 +3,13 @@
 
 CREATE TABLE IF NOT EXISTS uazapi_instances (
     name VARCHAR(255) NOT NULL PRIMARY KEY,
-    token VARCHAR(255) DEFAULT NULL
+    token VARCHAR(255) DEFAULT NULL,
+    status VARCHAR(20) DEFAULT 'disconnected',
+    profile_name VARCHAR(255) DEFAULT NULL,
+    profile_pic_url TEXT DEFAULT NULL,
+    phone_number VARCHAR(50) DEFAULT NULL,
+    is_business TINYINT(1) DEFAULT 0,
+    platform VARCHAR(50) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS uazapi_logs (

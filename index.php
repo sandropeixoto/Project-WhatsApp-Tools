@@ -13,7 +13,7 @@ if (isset($_GET['action'])) {
     $action = $_GET['action'];
     $input = json_decode(file_get_contents('php://input'), true);
 
-    // 1. Sincronizar Instâncias via API
+    // 1. Sincronizar Instâncias via API (com dados enriquecidos)
     if ($action === 'sync_instances') {
         $ch = curl_init("{$API_BASE_URL}/instance/all");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -26,10 +26,36 @@ if (isset($_GET['action'])) {
         if ($httpCode === 200) {
             $instances = json_decode($response, true);
             if (is_array($instances)) {
-                $stmt = $pdo->prepare("INSERT INTO uazapi_instances (name, token) VALUES (?, ?) ON DUPLICATE KEY UPDATE token = VALUES(token)");
+                $stmt = $pdo->prepare("INSERT INTO uazapi_instances 
+                    (name, token, status, profile_name, profile_pic_url, phone_number, is_business, platform) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
+                    ON DUPLICATE KEY UPDATE 
+                        token = VALUES(token),
+                        status = VALUES(status),
+                        profile_name = VALUES(profile_name),
+                        profile_pic_url = VALUES(profile_pic_url),
+                        phone_number = VALUES(phone_number),
+                        is_business = VALUES(is_business),
+                        platform = VALUES(platform)");
+
                 foreach ($instances as $inst) {
                     if (isset($inst['name']) && isset($inst['token'])) {
-                        $stmt->execute([$inst['name'], $inst['token']]);
+                        // Extrair telefone do owner ou do jid
+                        $phone = '';
+                        if (!empty($inst['owner'])) {
+                            $phone = preg_replace('/[^0-9]/', '', explode('@', $inst['owner'])[0]);
+                        }
+
+                        $stmt->execute([
+                            $inst['name'],
+                            $inst['token'],
+                            $inst['status'] ?? 'disconnected',
+                            $inst['profileName'] ?? null,
+                            $inst['profilePicUrl'] ?? null,
+                            $phone ?: null,
+                            !empty($inst['isBusiness']) ? 1 : 0,
+                            $inst['plataform'] ?? null
+                        ]);
                     }
                 }
                 echo json_encode(['success' => true, 'count' => count($instances)]);
@@ -41,9 +67,9 @@ if (isset($_GET['action'])) {
         exit;
     }
 
-    // 2. Buscar Instâncias do Banco Local para o Dropdown
+    // 2. Buscar Instâncias do Banco Local
     if ($action === 'get_instances') {
-        $stmt = $pdo->query("SELECT name FROM uazapi_instances ORDER BY name ASC");
+        $stmt = $pdo->query("SELECT name, status, profile_name, profile_pic_url, phone_number, is_business, platform FROM uazapi_instances ORDER BY name ASC");
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit;
     }
@@ -995,167 +1021,374 @@ if (isset($_GET['action'])) {
         .hidden {
             display: none !important;
         }
+
+        /* === TELA DE SELEÇÃO DE INSTÂNCIAS === */
+        .screen-select {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #f0f2f5;
+        }
+
+        .screen-select-header {
+            background: #00a884;
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .screen-select-header h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .screen-select-header .subtitle {
+            font-size: 12px;
+            opacity: 0.85;
+            margin-top: 2px;
+        }
+
+        .btn-sync-main {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn-sync-main:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-sync-main:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        .instances-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            padding: 24px;
+            flex: 1;
+            overflow-y: auto;
+            align-content: start;
+        }
+
+        .instance-card {
+            background: white;
+            border-radius: 12px;
+            padding: 18px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+            border: 2px solid transparent;
+            display: flex;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .instance-card:hover {
+            border-color: #00a884;
+            box-shadow: 0 4px 12px rgba(0, 168, 132, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .instance-card .card-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        .instance-card .card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .instance-card .card-name {
+            font-weight: 700;
+            font-size: 14px;
+            color: #111;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .instance-card .card-profile {
+            font-size: 12px;
+            color: #667781;
+            margin-top: 2px;
+        }
+
+        .instance-card .card-phone {
+            font-size: 11px;
+            color: #999;
+            margin-top: 1px;
+        }
+
+        .instance-card .card-badges {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            font-size: 10px;
+            padding: 1px 7px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .badge-connected {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .badge-disconnected {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .badge-business {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        /* === TOP BAR DO FEED === */
+        .feed-topbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #00a884;
+            padding: 10px 16px;
+            color: white;
+        }
+
+        .feed-topbar .topbar-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .feed-topbar .topbar-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .feed-topbar .topbar-name {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .feed-topbar .topbar-phone {
+            font-size: 11px;
+            opacity: 0.85;
+        }
+
+        .btn-switch {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn-switch:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
     </style>
 </head>
 
 <body>
 
-    <div class="app-container">
+    <!-- ========== TELA 1: SELEÇÃO DE INSTÂNCIA ========== -->
+    <div id="screen-select" class="screen-select">
+        <div class="screen-select-header">
+            <div>
+                <h1>📱 WhatsApp Tools</h1>
+                <div class="subtitle">Selecione uma instância para gerenciar</div>
+            </div>
+            <button class="btn-sync-main" id="btn-sync-select" onclick="syncAndRefresh()">🔄 Atualizar
+                Instâncias</button>
+        </div>
+        <div class="instances-grid" id="instances-grid">
+            <div style="text-align:center;color:#999;grid-column:1/-1;padding:40px;">Carregando instâncias...</div>
+        </div>
+    </div>
 
-        <div class="header">
-            <div class="header-left">
-                <img src="https://ui-avatars.com/api/?name=API&background=00a884&color=fff" alt="Perfil">
-                <div class="header-info">
-                    <h1>Central de Monitoramento</h1>
-                    <select id="instance-selector" onchange="changeInstance()">
-                        <option value="">Carregando instâncias...</option>
-                    </select>
-                </div>
+    <!-- ========== TELA 2: FEED DA INSTÂNCIA ========== -->
+    <div id="screen-feed" class="hidden">
+
+        <!-- Top Bar -->
+        <div class="feed-topbar">
+            <img id="topbar-avatar" class="topbar-avatar"
+                src="https://ui-avatars.com/api/?name=WA&background=128c7e&color=fff" alt="">
+            <div class="topbar-info">
+                <div class="topbar-name" id="topbar-name">Instância</div>
+                <div class="topbar-phone" id="topbar-phone"></div>
             </div>
-            <div class="header-right">
-                <button class="tools-btn" onclick="toggleSidebar()">🛠 Ferramentas</button>
-            </div>
+            <button class="btn-switch" onclick="switchInstance()">↩ Trocar</button>
+            <button class="tools-btn" onclick="toggleSidebar()" style="margin-left:4px;">🛠 Ferramentas</button>
         </div>
 
-        <!-- Abas -->
-        <div class="tab-bar">
-            <button class="active" onclick="switchTab('chat', this)">💬 Conversas</button>
-            <button onclick="switchTab('groups', this)">👥 Grupos</button>
-        </div>
+        <!-- Hidden selector for backward compat -->
+        <select id="instance-selector" class="hidden"></select>
 
-        <!-- Tab: Conversas -->
-        <div class="tab-content active" id="tab-chat">
-            <div class="chat-container" id="monitor">
-                <div style="text-align: center; margin: 20px 0; color: #666; font-size: 13px;">Selecione uma instância
-                    para visualizar</div>
-            </div>
-        </div>
+        <div class="app-container" style="height:calc(100vh - 56px);">
 
-        <!-- Tab: Grupos -->
-        <div class="tab-content" id="tab-groups">
-            <div class="groups-container">
-                <div class="groups-header">
-                    <h3>Grupos da Instância</h3>
-                    <button class="btn-sync-groups" id="btn-sync-groups" onclick="syncGroups()">🔄 Atualizar
-                        Grupos</button>
-                </div>
-                <div id="sync-groups-status" class="status-msg" style="margin-bottom: 10px;"></div>
-                <div id="groups-list">
-                    <div style="text-align: center; color: #666; font-size: 13px; padding: 30px 0;">Selecione uma
-                        instância e clique em "Atualizar Grupos"</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sidebar -->
-        <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <h2>Painel de Controle</h2>
-                <div class="close-btn" onclick="toggleSidebar()">&times;</div>
+            <!-- Abas -->
+            <div class="tab-bar">
+                <button class="active" onclick="switchTab('chat', this)">💬 Conversas</button>
+                <button onclick="switchTab('groups', this)">👥 Grupos</button>
             </div>
 
-            <div class="sidebar-content">
+            <!-- Tab: Conversas -->
+            <div class="tab-content active" id="tab-chat">
+                <div class="chat-container" id="monitor">
+                    <div style="text-align: center; margin: 20px 0; color: #666; font-size: 13px;">Selecione uma
+                        instância
+                        para visualizar</div>
+                </div>
+            </div>
 
-                <button class="btn-action btn-sync" onclick="syncApiInstances()" id="btn-sync">
-                    🔄 Sincronizar Instâncias da API
-                </button>
-                <div id="sync-status" class="status-msg" style="margin-top: -5px; margin-bottom: 15px;"></div>
+            <!-- Tab: Grupos -->
+            <div class="tab-content" id="tab-groups">
+                <div class="groups-container">
+                    <div class="groups-header">
+                        <h3>Grupos da Instância</h3>
+                        <button class="btn-sync-groups" id="btn-sync-groups" onclick="syncGroups()">🔄 Atualizar
+                            Grupos</button>
+                    </div>
+                    <div id="sync-groups-status" class="status-msg" style="margin-bottom: 10px;"></div>
+                    <div id="groups-list">
+                        <div style="text-align: center; color: #666; font-size: 13px; padding: 30px 0;">Selecione uma
+                            instância e clique em "Atualizar Grupos"</div>
+                    </div>
+                </div>
+            </div>
 
-                <!-- Enviar Mensagem -->
-                <div class="tool-box">
-                    <h3>💬 Enviar Mensagem</h3>
-                    <label>Número Destino</label>
-                    <input type="text" id="send-number" placeholder="Ex: 5511999999999">
-                    <label>Mensagem</label>
-                    <textarea id="send-text" style="height: 60px;" placeholder="Mensagem..."></textarea>
-                    <button class="btn-action" onclick="sendMessage()" id="btn-send">Enviar</button>
-                    <div id="send-status" class="status-msg"></div>
+            <!-- Sidebar -->
+            <div class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <h2>Painel de Controle</h2>
+                    <div class="close-btn" onclick="toggleSidebar()">&times;</div>
                 </div>
 
-                <!-- Enviar Status/Stories -->
-                <div class="tool-box">
-                    <h3>📸 Enviar Status / Stories</h3>
-                    <label>Tipo</label>
-                    <select id="status-type" onchange="toggleStatusFields()">
-                        <option value="text">Texto</option>
-                        <option value="image">Imagem</option>
-                        <option value="video">Vídeo</option>
-                        <option value="audio">Áudio</option>
-                    </select>
+                <div class="sidebar-content">
 
-                    <div id="status-text-fields">
-                        <label>Cor de Fundo</label>
-                        <select id="status-bg-color">
-                            <option value="1">Amarelo 1</option>
-                            <option value="2">Amarelo 2</option>
-                            <option value="3">Amarelo 3</option>
-                            <option value="4">Verde 1</option>
-                            <option value="5">Verde 2</option>
-                            <option value="6">Verde 3</option>
-                            <option value="7">Azul 1</option>
-                            <option value="8">Azul 2</option>
-                            <option value="9">Azul 3</option>
-                            <option value="10">Lilás 1</option>
-                            <option value="11">Lilás 2</option>
-                            <option value="12">Lilás 3</option>
-                            <option value="13">Magenta</option>
-                            <option value="14">Rosa 1</option>
-                            <option value="15">Rosa 2</option>
-                            <option value="16">Marrom</option>
-                            <option value="17">Cinza 1</option>
-                            <option value="18">Cinza 2</option>
-                            <option value="19" selected>Cinza 3 (padrão)</option>
-                        </select>
-                        <label>Fonte</label>
-                        <select id="status-font">
-                            <option value="0">Padrão</option>
-                            <option value="1" selected>Estilo 1</option>
-                            <option value="2">Estilo 2</option>
-                            <option value="3">Estilo 3</option>
-                            <option value="4">Estilo 4</option>
-                            <option value="5">Estilo 5</option>
-                            <option value="6">Estilo 6</option>
-                            <option value="7">Estilo 7</option>
-                            <option value="8">Estilo 8</option>
-                        </select>
+
+                    <!-- Enviar Mensagem -->
+                    <div class="tool-box">
+                        <h3>💬 Enviar Mensagem</h3>
+                        <label>Número Destino</label>
+                        <input type="text" id="send-number" placeholder="Ex: 5511999999999">
+                        <label>Mensagem</label>
+                        <textarea id="send-text" style="height: 60px;" placeholder="Mensagem..."></textarea>
+                        <button class="btn-action" onclick="sendMessage()" id="btn-send">Enviar</button>
+                        <div id="send-status" class="status-msg"></div>
                     </div>
 
-                    <div id="status-media-fields" class="hidden">
-                        <label>URL do arquivo</label>
-                        <input type="text" id="status-file" placeholder="https://exemplo.com/imagem.jpg">
+                    <!-- Enviar Status/Stories -->
+                    <div class="tool-box">
+                        <h3>📸 Enviar Status / Stories</h3>
+                        <label>Tipo</label>
+                        <select id="status-type" onchange="toggleStatusFields()">
+                            <option value="text">Texto</option>
+                            <option value="image">Imagem</option>
+                            <option value="video">Vídeo</option>
+                            <option value="audio">Áudio</option>
+                        </select>
+
+                        <div id="status-text-fields">
+                            <label>Cor de Fundo</label>
+                            <select id="status-bg-color">
+                                <option value="1">Amarelo 1</option>
+                                <option value="2">Amarelo 2</option>
+                                <option value="3">Amarelo 3</option>
+                                <option value="4">Verde 1</option>
+                                <option value="5">Verde 2</option>
+                                <option value="6">Verde 3</option>
+                                <option value="7">Azul 1</option>
+                                <option value="8">Azul 2</option>
+                                <option value="9">Azul 3</option>
+                                <option value="10">Lilás 1</option>
+                                <option value="11">Lilás 2</option>
+                                <option value="12">Lilás 3</option>
+                                <option value="13">Magenta</option>
+                                <option value="14">Rosa 1</option>
+                                <option value="15">Rosa 2</option>
+                                <option value="16">Marrom</option>
+                                <option value="17">Cinza 1</option>
+                                <option value="18">Cinza 2</option>
+                                <option value="19" selected>Cinza 3 (padrão)</option>
+                            </select>
+                            <label>Fonte</label>
+                            <select id="status-font">
+                                <option value="0">Padrão</option>
+                                <option value="1" selected>Estilo 1</option>
+                                <option value="2">Estilo 2</option>
+                                <option value="3">Estilo 3</option>
+                                <option value="4">Estilo 4</option>
+                                <option value="5">Estilo 5</option>
+                                <option value="6">Estilo 6</option>
+                                <option value="7">Estilo 7</option>
+                                <option value="8">Estilo 8</option>
+                            </select>
+                        </div>
+
+                        <div id="status-media-fields" class="hidden">
+                            <label>URL do arquivo</label>
+                            <input type="text" id="status-file" placeholder="https://exemplo.com/imagem.jpg">
+                        </div>
+
+                        <label>Texto / Legenda</label>
+                        <textarea id="status-text" style="height: 60px;" placeholder="Texto do status..."></textarea>
+
+                        <label>⏰ Quando enviar</label>
+                        <select id="status-schedule" style="margin-bottom: 8px;">
+                            <option value="now">🟢 Agora</option>
+                            <option value="+5min">Daqui a 5 minutos</option>
+                            <option value="+10min">Daqui a 10 minutos</option>
+                            <option value="+30min">Daqui a 30 minutos</option>
+                            <option value="+1hour">Daqui a 1 hora</option>
+                            <option value="+2hours">Daqui a 2 horas</option>
+                            <option value="tomorrow_8">🌅 Amanhã cedo (8h)</option>
+                            <option value="tomorrow_same">🔄 Amanhã neste horário</option>
+                        </select>
+
+                        <button class="btn-action" onclick="sendStatus()" id="btn-send-status">Publicar Status</button>
+                        <div id="status-send-status" class="status-msg"></div>
                     </div>
 
-                    <label>Texto / Legenda</label>
-                    <textarea id="status-text" style="height: 60px;" placeholder="Texto do status..."></textarea>
+                    <!-- Agendamentos Pendentes -->
+                    <div class="tool-box">
+                        <h3>📅 Agendamentos</h3>
+                        <button class="btn-action" onclick="loadSchedules()"
+                            style="background:#34B7F1;margin-bottom:8px;font-size:12px;padding:6px 12px;">🔄
+                            Atualizar</button>
+                        <div id="schedules-list" style="font-size:12px;">Clique em Atualizar para ver.</div>
+                    </div>
 
-                    <label>⏰ Quando enviar</label>
-                    <select id="status-schedule" style="margin-bottom: 8px;">
-                        <option value="now">🟢 Agora</option>
-                        <option value="+5min">Daqui a 5 minutos</option>
-                        <option value="+10min">Daqui a 10 minutos</option>
-                        <option value="+30min">Daqui a 30 minutos</option>
-                        <option value="+1hour">Daqui a 1 hora</option>
-                        <option value="+2hours">Daqui a 2 horas</option>
-                        <option value="tomorrow_8">🌅 Amanhã cedo (8h)</option>
-                        <option value="tomorrow_same">🔄 Amanhã neste horário</option>
-                    </select>
-
-                    <button class="btn-action" onclick="sendStatus()" id="btn-send-status">Publicar Status</button>
-                    <div id="status-send-status" class="status-msg"></div>
                 </div>
-
-                <!-- Agendamentos Pendentes -->
-                <div class="tool-box">
-                    <h3>📅 Agendamentos</h3>
-                    <button class="btn-action" onclick="loadSchedules()"
-                        style="background:#34B7F1;margin-bottom:8px;font-size:12px;padding:6px 12px;">🔄
-                        Atualizar</button>
-                    <div id="schedules-list" style="font-size:12px;">Clique em Atualizar para ver.</div>
-                </div>
-
             </div>
-        </div>
 
+        </div>
     </div>
 
     <script>
@@ -1200,66 +1433,115 @@ if (isset($_GET['action'])) {
             document.getElementById('status-media-fields').classList.toggle('hidden', type === 'text');
         }
 
-        // --- SINCRONIZAÇÃO DE INSTÂNCIAS ---
-        async function syncApiInstances() {
-            const btn = document.getElementById('btn-sync');
-            const statusDiv = document.getElementById('sync-status');
+        // --- DADOS DE INSTÂNCIAS (cache local) ---
+        let instancesData = [];
+        let activeInstanceName = '';
+        let logsInterval = null;
 
+        // --- RENDERIZAR CARDS DE INSTÂNCIAS ---
+        function renderInstanceCards(instances) {
+            const grid = document.getElementById('instances-grid');
+            if (instances.length === 0) {
+                grid.innerHTML = '<div style="text-align:center;color:#999;grid-column:1/-1;padding:40px;">Nenhuma instância encontrada.<br>Clique em "Atualizar Instâncias" para sincronizar.</div>';
+                return;
+            }
+
+            let html = '';
+            instances.forEach(inst => {
+                const pic = inst.profile_pic_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(inst.profile_name || inst.name)}&background=128c7e&color=fff&size=52`;
+                const statusBadge = inst.status === 'connected'
+                    ? '<span class="badge badge-connected">🟢 Online</span>'
+                    : '<span class="badge badge-disconnected">🔴 Offline</span>';
+                const bizBadge = inst.is_business == 1 ? '<span class="badge badge-business">💼 Business</span>' : '';
+                const phone = inst.phone_number ? `+${inst.phone_number}` : '';
+                const profileName = inst.profile_name || '';
+
+                html += `<div class="instance-card" onclick="selectInstance('${escapeHTML(inst.name)}')">
+                    <img class="card-avatar" src="${pic}" alt="" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(inst.name)}&background=128c7e&color=fff'">
+                    <div class="card-info">
+                        <div class="card-name">${escapeHTML(inst.name)}</div>
+                        ${profileName ? `<div class="card-profile">${escapeHTML(profileName)}</div>` : ''}
+                        ${phone ? `<div class="card-phone">📞 ${phone}</div>` : ''}
+                        <div class="card-badges">${statusBadge}${bizBadge}</div>
+                    </div>
+                </div>`;
+            });
+            grid.innerHTML = html;
+        }
+
+        // --- CARREGAR INSTÂNCIAS (para tela de seleção) ---
+        async function loadInstances() {
+            try {
+                const res = await fetch('index.php?action=get_instances');
+                instancesData = await res.json();
+                renderInstanceCards(instancesData);
+            } catch (e) {
+                document.getElementById('instances-grid').innerHTML = '<div style="color:red;text-align:center;grid-column:1/-1;padding:20px;">Erro ao carregar instâncias.</div>';
+            }
+        }
+
+        // --- SINCRONIZAR + REFRESH ---
+        async function syncAndRefresh() {
+            const btn = document.getElementById('btn-sync-select');
             btn.disabled = true;
-            btn.innerText = "Sincronizando...";
-            statusDiv.innerHTML = "";
+            btn.innerText = '⏳ Sincronizando...';
 
             try {
                 const res = await fetch('index.php?action=sync_instances');
                 const data = await res.json();
-
                 if (res.ok) {
-                    statusDiv.innerHTML = `<span style="color: green;">✔ ${data.count} instâncias atualizadas!</span>`;
-                    loadInstances();
-                } else {
-                    statusDiv.innerHTML = `<span style="color: red;">Erro ao sincronizar.</span>`;
+                    await loadInstances();
                 }
-            } catch (error) {
-                statusDiv.innerHTML = `<span style="color: red;">Falha de comunicação.</span>`;
+            } catch (e) {
+                // silently fail
             } finally {
                 btn.disabled = false;
-                btn.innerText = "🔄 Sincronizar Instâncias da API";
+                btn.innerText = '🔄 Atualizar Instâncias';
             }
         }
 
-        // --- GERENCIAMENTO DO DROPDOWN ---
-        async function loadInstances() {
-            const res = await fetch('index.php?action=get_instances');
-            const instances = await res.json();
+        // --- SELECIONAR INSTÂNCIA (ir para feed) ---
+        function selectInstance(name) {
+            activeInstanceName = name;
+            const inst = instancesData.find(i => i.name === name) || {};
+
+            // Preencher top bar
+            const pic = inst.profile_pic_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(inst.profile_name || name)}&background=128c7e&color=fff`;
+            document.getElementById('topbar-avatar').src = pic;
+            document.getElementById('topbar-name').textContent = inst.profile_name || name;
+            document.getElementById('topbar-phone').textContent = inst.phone_number ? `+${inst.phone_number} • ${name}` : name;
+
+            // Setar hidden selector pra compatibilidade
             const selector = document.getElementById('instance-selector');
+            selector.innerHTML = `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`;
+            selector.value = name;
 
-            const currentSelected = selector.value;
-            selector.innerHTML = '<option value="">-- Selecione uma instância --</option>';
+            // Trocar telas
+            document.getElementById('screen-select').classList.add('hidden');
+            document.getElementById('screen-feed').classList.remove('hidden');
 
-            if (instances.length === 0) {
-                selector.innerHTML = '<option value="">Nenhuma instância (Sincronize primeiro)</option>';
-                return;
-            }
+            // Limpar e carregar
+            document.getElementById('monitor').innerHTML = '<div style="text-align: center; margin: 20px 0; color: #666; font-size: 13px;">Carregando mensagens...</div>';
+            lastLogsString = '';
+            fetchLogs();
 
-            instances.forEach(inst => {
-                const opt = document.createElement('option');
-                opt.value = inst.name;
-                opt.textContent = inst.name;
-                selector.appendChild(opt);
-            });
+            // Iniciar polling
+            if (logsInterval) clearInterval(logsInterval);
+            logsInterval = setInterval(fetchLogs, 2000);
+        }
 
-            if (currentSelected && instances.find(i => i.name === currentSelected)) {
-                selector.value = currentSelected;
-            } else if (instances.length > 0) {
-                selector.value = instances[0].name;
-                changeInstance();
-            }
+        // --- TROCAR DE INSTÂNCIA (voltar para seleção) ---
+        function switchInstance() {
+            if (logsInterval) { clearInterval(logsInterval); logsInterval = null; }
+            document.getElementById('screen-feed').classList.add('hidden');
+            document.getElementById('screen-select').classList.remove('hidden');
+            document.getElementById('sidebar').classList.remove('open');
+            lastLogsString = '';
+            loadInstances(); // refresh cards
         }
 
         function changeInstance() {
-            document.getElementById('monitor').innerHTML = '<div style="text-align: center; margin: 20px 0; color: #666; font-size: 13px;">Carregando mensagens da instância...</div>';
-            lastLogsString = '';
-            fetchLogs();
+            // backward compat — no-op since we use selectInstance now
         }
 
         // --- ENVIAR MENSAGEM ---
@@ -1575,19 +1857,19 @@ if (isset($_GET['action'])) {
                     } else if (msg.messageType === 'GifMessage') {
                         if (fileURL) {
                             mediaHtml = `<div class="media-wrapper">${saveBtn}<img src="${fileURL}" class="msg-image" alt="GIF" loading="lazy"></div>`;
-                        } else if (content.JPEGThumbnail) {
-                            mediaHtml = `<div style="position:relative"><img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-image" alt="GIF"><div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.6);color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold">GIF</div></div>`;
-                        }
-                    }
+                        se tent.JPEGThumbnail) {
+                    mediaHtml = `<div style="position:relative"><img src="data:image/jpeg;base64,${content.JPEGThumbnail}" class="msg-image" alt="GIF"><div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.6);color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold">GIF</div></div>`;
+                }
+            }
 
                     let headerHtml = '';
-                    if (msg.isGroup) {
-                        const groupImage = chatInfo.imagePreview || 'https://ui-avatars.com/api/?name=G&background=dfe5e7&color=667781';
-                        const groupName = chatInfo.name || msg.groupName || "Grupo";
-                        let senderName = isFromMe ? "Você" : (msg.senderName || "Desconhecido");
-                        let senderPhone = isFromMe ? activeInstance : (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
+            if (msg.isGroup) {
+                const groupImage = chatInfo.imagePreview || 'https://ui-avatars.com/api/?name=G&background=dfe5e7&color=667781';
+                const groupName = chatInfo.name || msg.groupName || "Grupo";
+                let senderName = isFromMe ? "Você" : (msg.senderName || "Desconhecido");
+                let senderPhone = isFromMe ? activeInstance : (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
 
-                        headerHtml = `
+                headerHtml = `
                             <div class="group-header-block">
                                 <div class="info-line">
                                     <img src="${groupImage}" class="tiny-avatar" alt="G">
@@ -1598,13 +1880,13 @@ if (isset($_GET['action'])) {
                                 </div>
                             </div>
                         `;
-                    } else if (!isFromMe) {
-                        const contactName = msg.senderName || chatInfo.name || "Contato";
-                        const contactPhone = chatInfo.phone || (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
-                        headerHtml = `<div style="margin-bottom: 5px;"><span class="sender-name">${escapeHTML(contactName)}</span> ${contactPhone ? `<span class="sender-phone">(${contactPhone})</span>` : ''}</div>`;
-                    }
+            } else if (!isFromMe) {
+                const contactName = msg.senderName || chatInfo.name || "Contato";
+                const contactPhone = chatInfo.phone || (msg.sender_pn ? msg.sender_pn.split('@')[0] : '');
+                headerHtml = `<div style="margin-bottom: 5px;"><span class="sender-name">${escapeHTML(contactName)}</span> ${contactPhone ? `<span class="sender-phone">(${contactPhone})</span>` : ''}</div>`;
+            }
 
-                    let html = `
+            let html = `
                         <div class="msg-row ${alignClass}">
                             <div class="bubble ${alignClass}">
                                 ${headerHtml}
@@ -1614,17 +1896,16 @@ if (isset($_GET['action'])) {
                             </div>
                         </div>
                     `;
-                    monitorDiv.innerHTML += html;
-                });
+            monitorDiv.innerHTML += html;
+        });
 
-                monitorDiv.scrollTop = monitorDiv.scrollHeight;
+        monitorDiv.scrollTop = monitorDiv.scrollHeight;
 
             } catch (error) { console.error("Erro:", error); }
         }
 
-        // Inicia carregando as instâs qstão no banco
+        // Inicia carregando as instâncias para a tela de seleção
         loadInstances();
-        setInterval(fetchLogs, 2000);
     </script>
 </body>
 
