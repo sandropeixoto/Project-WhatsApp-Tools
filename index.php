@@ -53,7 +53,7 @@ if (isset($_GET['action'])) {
     // 3. Buscar Logs de uma Instância Específica
     if ($action === 'get_logs') {
         $name = $_GET['name'] ?? '';
-        $stmt = $pdo->prepare("SELECT payload FROM uazapi_logs WHERE instance_name = ? ORDER BY id DESC LIMIT 50");
+        $stmt = $pdo->prepare("SELECT payload FROM (SELECT id, payload FROM uazapi_logs WHERE instance_name = ? ORDER BY id DESC LIMIT 50) AS recent ORDER BY id ASC");
         $stmt->execute([$name]);
         $logs = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
