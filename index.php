@@ -13,13 +13,11 @@ if (isset($_GET['action'])) {
     $action = $_GET['action'];
     $input = json_decode(file_get_contents('php://input'), true);
 
-    // 1. Sincronizar Instâncias via API (Automático)
+    // 1. Sincronizar Instâncias via API
     if ($action === 'sync_instances') {
         $ch = curl_init("{$API_BASE_URL}/instance/all");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'admintoken: ' . $ADMIN_TOKEN
-        ]);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['admintoken: ' . $ADMIN_TOKEN]);
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -63,42 +61,22 @@ if (isset($_GET['action'])) {
         exit;
     }
 
-    // 4. Disparar Tools (Mensagem ou Status)
-    if ($action === 'send_message' || $action === 'send_status') {
+    // 4. Enviar Mensagem
+    if ($action === 'send_message') {
         $instanceName = $input['instance_name'] ?? '';
-
-        // Pega o token correto da instância no banco de dados
         $stmt = $pdo->prepare("SELECT token FROM uazapi_instances WHERE name = ?");
         $stmt->execute([$instanceName]);
         $instance = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$instance) {
             http_response_code(400);
-            echo json_encode(['error' => 'Token da instância não encontrado no banco.']);
+            echo json_encode(['error' => 'Token da instância não encontrado.']);
             exit;
         }
 
-        $url = ($action === 'send_message') ? "{$API_BASE_URL}/send/text" : "{$API_BASE_URL}/send/status";
+        $payload = ["number" => $input['number'] ?? '', "text" => $input['text'] ?? ''];
 
-        $payload = [];
-        if ($action === 'send_message') {
-            $payload = ["number" => $input['number'] ?? '', "text" => $input['text'] ?? ''];
-        }
-        else {
-            $payload = ["type" => $input['type']];
-            if ($input['type'] === 'text') {
-                $payload['text'] = $input['text'] ?? '';
-                $payload['background_color'] = (int)($input['bg_color'] ?? 19);
-                $payload['font'] = (int)($input['font'] ?? 1);
-            }
-            else {
-                $payload['file'] = $input['file'] ?? '';
-                if (!empty($input['text']))
-                    $payload['text'] = $input['text'];
-            }
-        }
-
-        $ch = curl_init($url);
+        $ch = curl_init("{$API_BASE_URL}/send/text");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
@@ -113,6 +91,133 @@ if (isset($_GET['action'])) {
 
         http_response_code($httpCode);
         echo $response;
+        exit;
+    }
+
+    // 5. Enviar Status/Stories
+    if ($action === 'send_status') {
+        $instanceName = $input['instance_name'] ?? '';
+        $stmt = $pdo->prepare("SELECT token FROM uazapi_instances WHERE name = ?");
+        $stmt->execute([$instanceName]);
+        $instance = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$instance) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Token da instância não encontrado.']);
+            exit;
+        }
+
+        $payload = ['type' => $input['type'] ?? 'text'];
+        if ($input['type'] === 'text') {
+            $payload['text'] = $input['text'] ?? '';
+            $payload['background_color'] = (int)($input['bg_color'] ?? 19);
+            $payload['font'] = (int)($input['font'] ?? 1);
+        }
+        else {
+            $payload['file'] = $input['file'] ?? '';
+            if (!empty($input['text'])) {
+                $payload['text'] = $input['text'];
+            }
+        }
+
+        $ch = curl_init("{$API_BASE_URL}/send/status");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'token: ' . $instance['token']
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        http_response_code($httpCode);
+        echo $response;
+        exit;
+    }
+
+    // 6. Sincronizar Grupos via API
+    if ($action === 'sync_groups') {
+        $instanceName = $input['instance_name'] ?? '';
+        $stmt = $pdo->prepare("SELECT token FROM uazapi_instances WHERE name = ?");
+        $stmt->execute([$instanceName]);
+        $instance = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$instance) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Token da instância não encontrado.']);
+            exit;
+        }
+
+        $ch = curl_init("{$API_BASE_URL}/group/list?force=true&noparticipants=false");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'token: ' . $instance['token']
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode === 200) {
+            $data = json_decode($response, true);
+            $groups = $data['groups'] ?? $data ?? [];
+
+            if (is_array($groups)) {
+                $stmt = $pdo->prepare("INSERT INTO uazapi_groups 
+                    (jid, instance_name, name, description, owner_jid, participant_count, is_announce, is_locked, is_admin, invite_link, group_created) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE 
+                        name = VALUES(name),
+                        description = VALUES(description),
+                        owner_jid = VALUES(owner_jid),
+                        participant_count = VALUES(participant_count),
+                        is_announce = VALUES(is_announce),
+                        is_locked = VALUES(is_locked),
+                        is_admin = VALUES(is_admin),
+                        invite_link = VALUES(invite_link),
+                        group_created = VALUES(group_created)");
+
+                foreach ($groups as $g) {
+                    $jid = $g['JID'] ?? '';
+                    if (empty($jid))
+                        continue;
+
+                    $participantCount = isset($g['Participants']) && is_array($g['Participants']) ? count($g['Participants']) : 0;
+                    $groupCreated = !empty($g['GroupCreated']) ? date('Y-m-d H:i:s', strtotime($g['GroupCreated'])) : null;
+
+                    $stmt->execute([
+                        $jid,
+                        $instanceName,
+                        $g['Name'] ?? null,
+                        $g['Topic'] ?? null,
+                        $g['OwnerJID'] ?? null,
+                        $participantCount,
+                        !empty($g['IsAnnounce']) ? 1 : 0,
+                        !empty($g['IsLocked']) ? 1 : 0,
+                        !empty($g['OwnerIsAdmin']) ? 1 : 0,
+                        $g['invite_link'] ?? null,
+                        $groupCreated
+                    ]);
+                }
+                echo json_encode(['success' => true, 'count' => count($groups)]);
+                exit;
+            }
+        }
+        http_response_code($httpCode ?: 500);
+        echo json_encode(['error' => 'Falha ao buscar grupos', 'details' => $response]);
+        exit;
+    }
+
+    // 7. Buscar Grupos do Banco
+    if ($action === 'get_groups') {
+        $name = $_GET['name'] ?? '';
+        $stmt = $pdo->prepare("SELECT jid, name, description, owner_jid, participant_count, is_announce, is_locked, is_admin, invite_link, updated_at FROM uazapi_groups WHERE instance_name = ? ORDER BY name ASC");
+        $stmt->execute([$name]);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit;
     }
 }
@@ -186,6 +291,11 @@ if (isset($_GET['action'])) {
             min-width: 200px;
         }
 
+        .header-right {
+            display: flex;
+            gap: 8px;
+        }
+
         .tools-btn {
             background-color: #00a884;
             color: white;
@@ -197,6 +307,51 @@ if (isset($_GET['action'])) {
             font-size: 13px;
         }
 
+        .groups-btn {
+            background-color: #34B7F1;
+        }
+
+        .groups-btn:hover {
+            background-color: #229dd1;
+        }
+
+        /* --- TABS: Chat vs Grupos --- */
+        .tab-bar {
+            display: flex;
+            background: #f0f2f5;
+            border-bottom: 1px solid #d1d7db;
+        }
+
+        .tab-bar button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: #667781;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-bar button.active {
+            color: #00a884;
+            border-bottom-color: #00a884;
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Chat --- */
         .chat-container {
             flex: 1;
             padding: 20px;
@@ -299,11 +454,113 @@ if (isset($_GET['action'])) {
             float: right;
         }
 
+        /* --- Grupos --- */
+        .groups-container {
+            padding: 15px;
+        }
+
+        .groups-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .groups-header h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #111b21;
+        }
+
+        .btn-sync-groups {
+            background: #00a884;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .btn-sync-groups:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .groups-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .groups-table th {
+            background: #f0f2f5;
+            padding: 10px 8px;
+            text-align: left;
+            font-weight: 600;
+            color: #667781;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .groups-table td {
+            padding: 8px;
+            border-bottom: 1px solid #f0f2f5;
+            color: #111b21;
+            vertical-align: top;
+        }
+
+        .groups-table tr:hover {
+            background: #f7f8fa;
+        }
+
+        .jid-cell {
+            font-family: monospace;
+            font-size: 11px;
+            color: #00a884;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .jid-cell:hover {
+            text-decoration: underline;
+        }
+
+        .copy-icon {
+            font-size: 10px;
+            opacity: 0.5;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .badge-yes {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .badge-no {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        /* --- Sidebar --- */
         .sidebar {
             position: absolute;
             top: 0;
-            right: -350px;
-            width: 340px;
+            right: -380px;
+            width: 370px;
             height: 100%;
             background: #f0f2f5;
             box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
@@ -402,6 +659,10 @@ if (isset($_GET['action'])) {
             margin-top: 10px;
             text-align: center;
         }
+
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 
@@ -419,14 +680,42 @@ if (isset($_GET['action'])) {
                     </select>
                 </div>
             </div>
-            <button class="tools-btn" onclick="toggleSidebar()">🛠 Ferramentas</button>
+            <div class="header-right">
+                <button class="tools-btn" onclick="toggleSidebar()">🛠 Ferramentas</button>
+            </div>
         </div>
 
-        <div class="chat-container" id="monitor">
-            <div style="text-align: center; margin: 20px 0; color: #666; font-size: 13px;">Selecione uma instância para
-                visualizar</div>
+        <!-- Abas -->
+        <div class="tab-bar">
+            <button class="active" onclick="switchTab('chat', this)">💬 Conversas</button>
+            <button onclick="switchTab('groups', this)">👥 Grupos</button>
         </div>
 
+        <!-- Tab: Conversas -->
+        <div class="tab-content active" id="tab-chat">
+            <div class="chat-container" id="monitor">
+                <div style="text-align: center; margin: 20px 0; color: #666; font-size: 13px;">Selecione uma instância
+                    para visualizar</div>
+            </div>
+        </div>
+
+        <!-- Tab: Grupos -->
+        <div class="tab-content" id="tab-groups">
+            <div class="groups-container">
+                <div class="groups-header">
+                    <h3>Grupos da Instância</h3>
+                    <button class="btn-sync-groups" id="btn-sync-groups" onclick="syncGroups()">🔄 Atualizar
+                        Grupos</button>
+                </div>
+                <div id="sync-groups-status" class="status-msg" style="margin-bottom: 10px;"></div>
+                <div id="groups-list">
+                    <div style="text-align: center; color: #666; font-size: 13px; padding: 30px 0;">Selecione uma
+                        instância e clique em "Atualizar Grupos"</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h2>Painel de Controle</h2>
@@ -440,14 +729,74 @@ if (isset($_GET['action'])) {
                 </button>
                 <div id="sync-status" class="status-msg" style="margin-top: -5px; margin-bottom: 15px;"></div>
 
+                <!-- Enviar Mensagem -->
                 <div class="tool-box">
-                    <h3>💬 Enviar Mensagem (Instância Ativa)</h3>
+                    <h3>💬 Enviar Mensagem</h3>
                     <label>Número Destino</label>
                     <input type="text" id="send-number" placeholder="Ex: 5511999999999">
                     <label>Mensagem</label>
                     <textarea id="send-text" style="height: 60px;" placeholder="Mensagem..."></textarea>
                     <button class="btn-action" onclick="sendMessage()" id="btn-send">Enviar</button>
                     <div id="send-status" class="status-msg"></div>
+                </div>
+
+                <!-- Enviar Status/Stories -->
+                <div class="tool-box">
+                    <h3>📸 Enviar Status / Stories</h3>
+                    <label>Tipo</label>
+                    <select id="status-type" onchange="toggleStatusFields()">
+                        <option value="text">Texto</option>
+                        <option value="image">Imagem</option>
+                        <option value="video">Vídeo</option>
+                        <option value="audio">Áudio</option>
+                    </select>
+
+                    <div id="status-text-fields">
+                        <label>Cor de Fundo</label>
+                        <select id="status-bg-color">
+                            <option value="1">Amarelo 1</option>
+                            <option value="2">Amarelo 2</option>
+                            <option value="3">Amarelo 3</option>
+                            <option value="4">Verde 1</option>
+                            <option value="5">Verde 2</option>
+                            <option value="6">Verde 3</option>
+                            <option value="7">Azul 1</option>
+                            <option value="8">Azul 2</option>
+                            <option value="9">Azul 3</option>
+                            <option value="10">Lilás 1</option>
+                            <option value="11">Lilás 2</option>
+                            <option value="12">Lilás 3</option>
+                            <option value="13">Magenta</option>
+                            <option value="14">Rosa 1</option>
+                            <option value="15">Rosa 2</option>
+                            <option value="16">Marrom</option>
+                            <option value="17">Cinza 1</option>
+                            <option value="18">Cinza 2</option>
+                            <option value="19" selected>Cinza 3 (padrão)</option>
+                        </select>
+                        <label>Fonte</label>
+                        <select id="status-font">
+                            <option value="0">Padrão</option>
+                            <option value="1" selected>Estilo 1</option>
+                            <option value="2">Estilo 2</option>
+                            <option value="3">Estilo 3</option>
+                            <option value="4">Estilo 4</option>
+                            <option value="5">Estilo 5</option>
+                            <option value="6">Estilo 6</option>
+                            <option value="7">Estilo 7</option>
+                            <option value="8">Estilo 8</option>
+                        </select>
+                    </div>
+
+                    <div id="status-media-fields" class="hidden">
+                        <label>URL do arquivo</label>
+                        <input type="text" id="status-file" placeholder="https://exemplo.com/imagem.jpg">
+                    </div>
+
+                    <label>Texto / Legenda</label>
+                    <textarea id="status-text" style="height: 60px;" placeholder="Texto do status..."></textarea>
+                    <button class="btn-action" onclick="sendStatus()">Publicar Status</button>
+                    <div id="status-send-status" class="status-msg"></div>
                 </div>
 
             </div>
@@ -462,7 +811,24 @@ if (isset($_GET['action'])) {
         function escapeHTML(str) { if (!str) return ''; return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])); }
         function formatTime(timestamp) { return new Date(timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); }
 
-        // --- SINCRONIZAÇÃO AUTOMÁTICA ---
+        // --- TABS ---
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            btn.classList.add('active');
+
+            if (tabId === 'groups') loadGroups();
+        }
+
+        // --- TOGGLE STATUS FIELDS ---
+        function toggleStatusFields() {
+            const type = document.getElementById('status-type').value;
+            document.getElementById('status-text-fields').classList.toggle('hidden', type !== 'text');
+            document.getElementById('status-media-fields').classList.toggle('hidden', type === 'text');
+        }
+
+        // --- SINCRONIZAÇÃO DE INSTÂNCIAS ---
         async function syncApiInstances() {
             const btn = document.getElementById('btn-sync');
             const statusDiv = document.getElementById('sync-status');
@@ -477,7 +843,7 @@ if (isset($_GET['action'])) {
 
                 if (res.ok) {
                     statusDiv.innerHTML = `<span style="color: green;">✔ ${data.count} instâncias atualizadas!</span>`;
-                    loadInstances(); // Recarrega o dropdown
+                    loadInstances();
                 } else {
                     statusDiv.innerHTML = `<span style="color: red;">Erro ao sincronizar.</span>`;
                 }
@@ -510,7 +876,6 @@ if (isset($_GET['action'])) {
                 selector.appendChild(opt);
             });
 
-            // Mantém a seleção anterior se ela ainda existir
             if (currentSelected && instances.find(i => i.name === currentSelected)) {
                 selector.value = currentSelected;
             } else if (instances.length > 0) {
@@ -525,7 +890,7 @@ if (isset($_GET['action'])) {
             fetchLogs();
         }
 
-        // --- DISPARO DE FERRAMENTAS ---
+        // --- ENVIAR MENSAGEM ---
         async function sendMessage() {
             const activeInstance = document.getElementById('instance-selector').value;
             if (!activeInstance) return alert("Selecione uma instância no topo primeiro.");
@@ -547,6 +912,137 @@ if (isset($_GET['action'])) {
             } else {
                 statusDiv.innerHTML = '<span style="color: red;">Erro no envio.</span>';
             }
+        }
+
+        // --- ENVIAR STATUS/STORIES ---
+        async function sendStatus() {
+            const activeInstance = document.getElementById('instance-selector').value;
+            if (!activeInstance) return alert("Selecione uma instância no topo primeiro.");
+
+            const type = document.getElementById('status-type').value;
+            const text = document.getElementById('status-text').value.trim();
+            const statusDiv = document.getElementById('status-send-status');
+
+            const payload = { instance_name: activeInstance, type, text };
+
+            if (type === 'text') {
+                payload.bg_color = document.getElementById('status-bg-color').value;
+                payload.font = document.getElementById('status-font').value;
+            } else {
+                payload.file = document.getElementById('status-file').value.trim();
+                if (!payload.file) return alert("Insira a URL do arquivo de mídia.");
+            }
+
+            if (type === 'text' && !text) return alert("Insira o texto do status.");
+
+            statusDiv.innerHTML = 'Publicando...';
+            try {
+                const res = await fetch('index.php?action=send_status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    statusDiv.innerHTML = '<span style="color: green;">✔ Status publicado!</span>';
+                    document.getElementById('status-text').value = '';
+                } else {
+                    const err = await res.json();
+                    statusDiv.innerHTML = `<span style="color: red;">Erro: ${err.error || 'Falha no envio'}</span>`;
+                }
+            } catch (e) {
+                statusDiv.innerHTML = '<span style="color: red;">Falha de comunicação.</span>';
+            }
+        }
+
+        // --- SINCRONIZAR GRUPOS ---
+        async function syncGroups() {
+            const activeInstance = document.getElementById('instance-selector').value;
+            if (!activeInstance) return alert("Selecione uma instância no topo primeiro.");
+
+            const btn = document.getElementById('btn-sync-groups');
+            const statusDiv = document.getElementById('sync-groups-status');
+
+            btn.disabled = true;
+            btn.innerText = "Atualizando...";
+            statusDiv.innerHTML = "";
+
+            try {
+                const res = await fetch('index.php?action=sync_groups', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ instance_name: activeInstance })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    statusDiv.innerHTML = `<span style="color: green;">✔ ${data.count} grupos sincronizados!</span>`;
+                    loadGroups();
+                } else {
+                    statusDiv.innerHTML = `<span style="color: red;">Erro: ${data.error || 'Falha'}</span>`;
+                }
+            } catch (e) {
+                statusDiv.innerHTML = '<span style="color: red;">Falha de comunicação.</span>';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "🔄 Atualizar Grupos";
+            }
+        }
+
+        // --- CARREGAR GRUPOS ---
+        async function loadGroups() {
+            const activeInstance = document.getElementById('instance-selector').value;
+            const listDiv = document.getElementById('groups-list');
+            if (!activeInstance) {
+                listDiv.innerHTML = '<div style="text-align: center; color: #666; font-size: 13px; padding: 30px 0;">Selecione uma instância primeiro</div>';
+                return;
+            }
+
+            try {
+                const res = await fetch(`index.php?action=get_groups&name=${activeInstance}`);
+                const groups = await res.json();
+
+                if (groups.length === 0) {
+                    listDiv.innerHTML = '<div style="text-align: center; color: #666; font-size: 13px; padding: 30px 0;">Nenhum grupo encontrado. Clique em "Atualizar Grupos".</div>';
+                    return;
+                }
+
+                let html = `<table class="groups-table">
+                    <thead>
+                        <tr>
+                            <th>JID (clique p/ copiar)</th>
+                            <th>Nome</th>
+                            <th>Participantes</th>
+                            <th>Admin?</th>
+                            <th>Anúncio</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+                groups.forEach(g => {
+                    html += `<tr>
+                        <td><span class="jid-cell" onclick="copyJid('${escapeHTML(g.jid)}')" title="Clique para copiar">${escapeHTML(g.jid)} <span class="copy-icon">📋</span></span></td>
+                        <td><strong>${escapeHTML(g.name || 'Sem nome')}</strong>${g.description ? '<br><small style="color:#667781;">' + escapeHTML(g.description).substring(0, 60) + '</small>' : ''}</td>
+                        <td style="text-align:center;">${g.participant_count}</td>
+                        <td style="text-align:center;"><span class="badge ${g.is_admin == 1 ? 'badge-yes' : 'badge-no'}">${g.is_admin == 1 ? '✅ Sim' : '❌ Não'}</span></td>
+                        <td style="text-align:center;"><span class="badge ${g.is_announce == 1 ? 'badge-yes' : 'badge-no'}">${g.is_announce == 1 ? 'Só Admins' : 'Todos'}</span></td>
+                    </tr>`;
+                });
+
+                html += '</tbody></table>';
+                listDiv.innerHTML = html;
+
+            } catch (e) {
+                listDiv.innerHTML = '<div style="text-align: center; color: red; font-size: 13px; padding: 30px 0;">Erro ao carregar grupos.</div>';
+            }
+        }
+
+        function copyJid(jid) {
+            navigator.clipboard.writeText(jid).then(() => {
+                const old = event.target.closest('.jid-cell');
+                old.style.color = '#16a34a';
+                setTimeout(() => old.style.color = '#00a884', 1500);
+            });
         }
 
         // --- RENDERIZAÇÃO DA CONVERSA ---

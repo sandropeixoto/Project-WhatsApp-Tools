@@ -28,5 +28,24 @@ if (!empty($payload)) {
                 ORDER BY id DESC LIMIT 500
             ) AS keep_rows
         )");
+
+    // --- Feature 4: Auto-registro de grupos via mensagens recebidas ---
+    $msgData = $data['data'] ?? $data;
+    $message = $msgData['message'] ?? null;
+
+    if ($message && !empty($message['isGroup'])) {
+        $groupJid = $message['chatJid'] ?? ($msgData['chat']['wa_chatid'] ?? null);
+        $groupName = $message['groupName'] ?? ($msgData['chat']['name'] ?? null);
+
+        if ($groupJid) {
+            $checkStmt = $pdo->prepare("SELECT jid FROM uazapi_groups WHERE jid = ? AND instance_name = ?");
+            $checkStmt->execute([$groupJid, $instanceName]);
+
+            if (!$checkStmt->fetch()) {
+                $insertStmt = $pdo->prepare("INSERT IGNORE INTO uazapi_groups (jid, instance_name, name) VALUES (?, ?, ?)");
+                $insertStmt->execute([$groupJid, $instanceName, $groupName]);
+            }
+        }
+    }
 }
 ?>
