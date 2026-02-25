@@ -135,7 +135,7 @@ if (!empty($prompt)) {
         exit;
     }
 
-    $generatedText = "*[ESCALA-DO-PAO-CGLC]*\n" . $aiResult['message'];
+    $generatedText = "*🤖 ESCALA-DO-PAO-CGLC 🤖*\n" . $aiResult['message'];
 
     // Inserir na tabela de schedule para o cron.php principal enviar
     $scheduledAt = $now->format('Y-m-d H:i:s');
