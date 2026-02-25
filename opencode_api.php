@@ -69,10 +69,10 @@ function generateOpenCodeMessage($prompt, $previousMessages = [])
 }
 
 /**
- * Busca as últimas N mensagens geradas por um agente no banco de dados.
- * Usa a tabela uazapi_schedule que já contém o texto no payload JSON.
+ * Busca as últimas N mensagens ENVIADAS por um agente no banco de dados.
+ * Filtra por: agent_id, instance_name e status='sent'.
  */
-function getAgentMessageHistory($pdo, $agentId, $limit = 10)
+function getAgentMessageHistory($pdo, $agentId, $instanceName, $limit = 10)
 {
     $jsonPath = '$.agent_id';
     $textPath = '$.text';
@@ -80,11 +80,13 @@ function getAgentMessageHistory($pdo, $agentId, $limit = 10)
         SELECT JSON_UNQUOTE(JSON_EXTRACT(payload, ?)) as msg_text
         FROM uazapi_schedule
         WHERE CAST(JSON_UNQUOTE(JSON_EXTRACT(payload, ?)) AS UNSIGNED) = ?
+        AND instance_name = ?
+        AND status = 'sent'
         AND JSON_EXTRACT(payload, ?) IS NOT NULL
         ORDER BY id DESC
         LIMIT ?
     ");
-    $stmt->execute([$textPath, $jsonPath, $agentId, $textPath, $limit]);
+    $stmt->execute([$textPath, $jsonPath, $agentId, $instanceName, $textPath, $limit]);
     $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
     // Reverter para ordem cronológica (mais antiga primeiro)

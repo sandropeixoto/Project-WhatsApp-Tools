@@ -27,7 +27,7 @@ if (!empty($orphanAgents)) {
     foreach ($orphanAgents as $agent) {
         $agentId = $agent['id'];
 
-        $history = getAgentMessageHistory($pdo, $agentId, 10);
+        $history = getAgentMessageHistory($pdo, $agentId, $agent['instance_name'], 10);
         $aiResult = generateOpenCodeMessage($agent['prompt'], $history);
         if (!$aiResult['success']) {
             echo date('Y-m-d H:i:s') . " [ERROR] Agent #$agentId falhou ao gerar msg: " . $aiResult['error'] . "\n";
@@ -153,7 +153,7 @@ foreach ($tasks as $task) {
             $agent = $stmtAgent->fetch(PDO::FETCH_ASSOC);
 
             if ($agent) {
-                $history = getAgentMessageHistory($pdo, $agentId, 10);
+                $history = getAgentMessageHistory($pdo, $agentId, $agent['instance_name'], 10);
                 $aiResult = generateOpenCodeMessage($agent['prompt'], $history);
                 if ($aiResult['success']) {
                     $nextText = $aiResult['message'];

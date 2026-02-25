@@ -602,7 +602,7 @@ if (isset($_GET['action'])) {
         }
 
         require_once __DIR__ . '/opencode_api.php';
-        $history = getAgentMessageHistory($pdo, $agentId, 10);
+        $history = getAgentMessageHistory($pdo, $agentId, $agent['instance_name'], 10);
         $aiResult = generateOpenCodeMessage($agent['prompt'], $history);
 
         if (!$aiResult['success']) {
