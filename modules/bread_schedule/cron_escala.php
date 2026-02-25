@@ -33,7 +33,7 @@ $isChamado = ($currentTime === '07:30');
 
 // Para testes manuais (descomente para testar ignorando a hora)
 // $isSpoiler = true;
-$isChamado = true;
+// $isChamado = true;
 
 if (!$isSpoiler && !$isChamado) {
     // Não é hora de rodar nenhum dos cenários.
@@ -135,7 +135,7 @@ if (!empty($prompt)) {
         exit;
     }
 
-    $generatedText = $aiResult['message'];
+    $generatedText = "*[ESCALA-DO-PAO-CGLC]*\n" . $aiResult['message'];
 
     // Inserir na tabela de schedule para o cron.php principal enviar
     $scheduledAt = $now->format('Y-m-d H:i:s');
