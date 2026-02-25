@@ -14,7 +14,7 @@ require_once __DIR__ . '/../../opencode_api.php';
 // CONFIGURAÇÕES DO MÓDULO
 // ==========================================
 $INSTANCE_NAME = "Sandro"; // Ex: "WhatsApp_Principal"
-$RECIPIENT = "120363403598321479@g.us"; // Ex: "5511999999999@g.us"
+$RECIPIENT = "559191387115-1470766677@g.us"; // Ex: "5511999999999@g.us"
 $API_ESCALA = "https://escala-do-pao.web.app/api/schedule?days=5";
 
 // Fuso horário
