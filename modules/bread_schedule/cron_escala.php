@@ -33,7 +33,7 @@ $isChamado = ($currentTime === '07:30');
 
 // Para testes manuais (descomente para testar ignorando a hora)
 // $isSpoiler = true;
-$isChamado = true;
+// $isChamado = true;
 
 if (!$isSpoiler && !$isChamado) {
     // Não é hora de rodar nenhum dos cenários.
