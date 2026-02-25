@@ -32,7 +32,7 @@ $isSpoiler = ($currentTime === '16:00');
 $isChamado = ($currentTime === '07:30');
 
 // Para testes manuais (descomente para testar ignorando a hora)
-// $isSpoiler = true;
+$isSpoiler = true;
 // $isChamado = true;
 
 if (!$isSpoiler && !$isChamado) {
