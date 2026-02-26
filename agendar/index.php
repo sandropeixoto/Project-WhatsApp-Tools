@@ -365,7 +365,7 @@ require_once __DIR__ . '/api/auth_middleware.php';
                         alert("Erro: " + data.error);
                     }
                 } catch (e) {
-                    al"Erxcluir.");
+                    alert("Erro ao excluir.");
                 }
             });
 
