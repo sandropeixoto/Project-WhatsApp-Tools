@@ -28,6 +28,11 @@ else if (isset($_COOKIE['agendar_session'])) {
 }
 
 if (!$user) {
+    if (isset($is_page_request) && $is_page_request) {
+        header("Location: login.php");
+        exit;
+    }
+
     if (!isset($skip_auth_redirect)) {
         http_response_code(401);
         echo json_encode(['error' => 'Não autorizado. Faça o login.']);

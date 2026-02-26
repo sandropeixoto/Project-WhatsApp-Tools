@@ -1,5 +1,6 @@
 <?php
 // agendar/index.php
+$is_page_request = true;
 require_once __DIR__ . '/api/auth_middleware.php';
 
 // $user is available here

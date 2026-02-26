@@ -1,5 +1,6 @@
 <?php
 // agendar/config.php
+$is_page_request = true;
 require_once __DIR__ . '/api/auth_middleware.php';
 
 if ($user['role'] !== 'owner') {

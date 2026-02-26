@@ -53,8 +53,8 @@ try {
         if ($mediaType !== 'text') {
             $payload['type'] = $mediaType;
 
-            // Construir o absolute path local
-            $fullMediaPath = __DIR__ . '/../' . ltrim($mediaPath, '/');
+            // Construir o absolute path local (mediaPath já começa com 'storage/account...')
+            $fullMediaPath = __DIR__ . '/' . ltrim($mediaPath, '/');
 
             if (!empty($mediaPath) && file_exists($fullMediaPath)) {
                 $mimeType = mime_content_type($fullMediaPath);
