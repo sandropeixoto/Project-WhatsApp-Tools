@@ -202,6 +202,7 @@ require_once __DIR__ . '/api/auth_middleware.php';
                     document.getElementById('mediaPreview').classList.add('d-none');
                     document.getElementById('eventMediaPath').value = '';
                     statusAlert.classList.add('d-none');
+                    document.getElementById('btnSave').disabled = false;
 
                     document.getElementById('eventModalTitle').innerText = "Nova Mensagem Agendada";
                     modal.show();
@@ -364,7 +365,7 @@ require_once __DIR__ . '/api/auth_middleware.php';
                         alert("Erro: " + data.error);
                     }
                 } catch (e) {
-                    alert("Erro ao excluir.");
+                    al"Erxcluir.");
                 }
             });
 
