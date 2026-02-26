@@ -79,25 +79,32 @@ if ($action === 'invite') {
     $API_BASE_URL = "https://sspeixoto.uazapi.com";
     $GLOBAL_API_KEY = "429683C4C977415CAC4093722755E482";
 
-    $ch = curl_init("{$API_BASE_URL}/send/text");
+    // Fetch sender instance token
+    $stmtSysInst = $pdo->prepare("SELECT token FROM uazapi_instances WHERE name = ?");
+    $stmtSysInst->execute([$TOKEN_INSTANCE_NAME]);
+    $sysInstance = $stmtSysInst->fetch(PDO::FETCH_ASSOC);
 
-    $headers = [
-        'Content-Type: application/json',
-        "token: {$TOKEN_INSTANCE_NAME}" // Using the core notification sender instance from env
-    ];
+    if ($sysInstance) {
+        $ch = curl_init("{$API_BASE_URL}/send/text");
 
-    if (!empty($GLOBAL_API_KEY)) {
-        $headers[] = "apikey: {$GLOBAL_API_KEY}";
+        $headers = [
+            'Content-Type: application/json',
+            "token: " . $sysInstance['token']
+        ];
+
+        if (!empty($GLOBAL_API_KEY)) {
+            $headers[] = "apikey: {$GLOBAL_API_KEY}";
+        }
+
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+
+        curl_exec($ch);
+        curl_close($ch);
     }
-
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-
-    curl_exec($ch);
-    curl_close($ch);
 
     echo json_encode(['success' => true]);
     exit;
