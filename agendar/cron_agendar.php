@@ -6,6 +6,9 @@
 require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/env.php';
 
+$API_BASE_URL = "https://sspeixoto.uazapi.com";
+$GLOBAL_API_KEY = "429683C4C977415CAC4093722755E482";
+
 // Limita execução para evitar processos paralelos se houver lentidão
 $lockFile = sys_get_temp_dir() . '/cron_agendar.lock';
 $lockHandle = fopen($lockFile, 'w');
