@@ -225,7 +225,8 @@ require_once __DIR__ . '/api/auth_middleware.php';
 
                     if (props.media_path) {
                         document.getElementById('mediaPreview').classList.remove('d-none');
-                        document.getElementById('mediaLink').href = '../' + props.media_path;
+                        const basePath = '<?= rtrim(dirname($_SERVER["PHP_SELF"]), "/\\")?>/';
+                        document.getElementById('mediaLink').href = basePath + props.media_path;
                     } else {
                         document.getElementById('mediaPreview').classList.add('d-none');
                     }
