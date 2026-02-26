@@ -137,8 +137,8 @@ if ($user['role'] !== 'owner') {
                 <form id="inviteForm">
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label class="form-label">Número do WhatsApp (com DDI)</label>
-                            <input type="text" class="form-control" id="invitePhone" placeholder="5511999999999"
+                            <label class="form-label">Número do WhatsApp</label>
+                            <input type="text" class="form-control" id="invitePhone" placeholder="+55 (11) 99999-9999"
                                 required>
                         </div>
                     </div>
@@ -162,6 +162,23 @@ if ($user['role'] !== 'owner') {
                 alertBox.className = `alert alert-${type} mb-4`;
                 alertBox.innerText = msg;
             }
+
+            document.getElementById('invitePhone').addEventListener('input', function (e) {
+                let val = e.target.value.replace(/\D/g, '');
+                if (!val) {
+                    e.target.value = '';
+                    return;
+                }
+                if (!val.startsWith('55')) val = '55' + val;
+                val = val.substring(0, 13);
+
+                let res = '+55 ';
+                if (val.length > 2) res += '(' + val.substring(2, 4);
+                if (val.length > 4) res += ') ' + val.substring(4, 9);
+                if (val.length > 9) res += '-' + val.substring(9, 13);
+
+                e.target.value = res;
+            });
 
             async function loadConfig() {
                 try {
@@ -223,7 +240,7 @@ if ($user['role'] !== 'owner') {
                 e.preventDefault();
                 const btn = document.getElementById('btnInvite');
                 btn.disabled = true;
-                const phone = document.getElementById('invitePhone').value;
+                const phone = document.getElementById('invitePhone').value.replace(/\D/g, '');
 
                 try {
                     const res = await fetch('api/config.php?action=invite', {

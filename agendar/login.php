@@ -77,8 +77,8 @@ else if (isset($_SESSION['agendar_user'])) {
         <form id="step1Form">
             <div class="mb-3 text-start">
                 <label class="form-label" for="phoneInput">Número do WhatsApp</label>
-                <input type="text" class="form-control" id="phoneInput" placeholder="Ex: 5511999999999" required>
-                <small class="text-muted">Apenas números, com DDI (Ex: 55)</small>
+                <input type="text" class="form-control" id="phoneInput" placeholder="+55 (11) 99999-9999" required>
+                <small class="text-muted">O código do país (+55) é automático.</small>
             </div>
             <button type="submit" class="btn btn-primary w-100 wa-primary" id="btnSendToken">
                 <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
@@ -111,6 +111,23 @@ else if (isset($_SESSION['agendar_user'])) {
         const btnVerifyToken = document.getElementById('btnVerifyToken');
         const alertBox = document.getElementById('alertBox');
         const btnGoBack = document.getElementById('btnGoBack');
+
+        phoneInput.addEventListener('input', function (e) {
+            let val = e.target.value.replace(/\D/g, '');
+            if (!val) {
+                e.target.value = '';
+                return;
+            }
+            if (!val.startsWith('55')) val = '55' + val;
+            val = val.substring(0, 13);
+
+            let res = '+55 ';
+            if (val.length > 2) res += '(' + val.substring(2, 4);
+            if (val.length > 4) res += ') ' + val.substring(4, 9);
+            if (val.length > 9) res += '-' + val.substring(9, 13);
+
+            e.target.value = res;
+        });
 
         let currentPhone = '';
 
