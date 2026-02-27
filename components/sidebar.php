@@ -38,8 +38,14 @@
 
         <div class="px-3 mb-2 mt-auto text-muted small fw-bold text-uppercase">Sistema</div>
         <div class="list-group list-group-flush">
-            <a href="instances.php" class="list-group-item list-group-item-action py-3 fw-semibold text-danger">
+            <a href="register.php" class="list-group-item list-group-item-action py-3 fw-semibold text-primary">
+                <i class="bi bi-person-plus me-3 fs-5"></i> Novo Usuário
+            </a>
+            <a href="instances.php" class="list-group-item list-group-item-action py-3 fw-semibold text-warning">
                 <i class="bi bi-arrow-return-left me-3 fs-5"></i> Trocar Instância
+            </a>
+            <a href="logout.php" class="list-group-item list-group-item-action py-3 fw-semibold text-danger">
+                <i class="bi bi-box-arrow-right me-3 fs-5"></i> Sair
             </a>
         </div>
     </div>

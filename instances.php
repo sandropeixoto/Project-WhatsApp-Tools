@@ -1,5 +1,6 @@
 <?php
 // instances.php — Tela de Seleção de Instâncias
+require_once __DIR__ . '/api/auth.php';
 require_once __DIR__ . '/db.php';
 
 $API_BASE_URL = "https://sspeixoto.uazapi.com";
