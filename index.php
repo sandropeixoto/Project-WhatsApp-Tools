@@ -156,7 +156,13 @@ async function loadMessages(jid) {
         monitor.innerHTML = messages.map(msg => {
             const isOut = msg.from_me == 1;
             const timestamp = msg.message_timestamp ? parseInt(msg.message_timestamp) : (new Date(msg.created_at).getTime() / 1000);
-            const time = new Date(timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            // Formatar hora para America/Belem no cliente
+            const time = new Intl.DateTimeFormat('pt-BR', {
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: 'America/Belem'
+            }).format(new Date(timestamp * 1000));
             
             let content = '';
             if (msg.message_type === 'ImageMessage' && msg.file_url) {

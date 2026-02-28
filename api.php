@@ -2,6 +2,9 @@
 require_once __DIR__ . '/api/auth.php';
 require_once __DIR__ . '/db.php';
 
+// Definir fuso horário padrão solicitado
+date_default_timezone_set('America/Belem');
+
 // --- CONFIGURAÇÕES DA API ---
 $API_BASE_URL = "https://sspeixoto.uazapi.com";
 $ADMIN_TOKEN = "4cFCOnaDoBvSuhytYRRT5RaTRNSxP0ornjJDv9TdLvxmmaHDFO";
@@ -135,13 +138,12 @@ if (isset($_GET['action'])) {
                 text, file_url, mimetype, file_name, created_at
             FROM uazapi_logs 
             WHERE instance_name = ? AND chat_jid = ? 
-            ORDER BY id ASC
+            ORDER BY COALESCE(message_timestamp, UNIX_TIMESTAMP(created_at)) ASC
         ");
         $stmt->execute([$name, $jid]);
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit;
     }
-
     // 4. Enviar Mensagem
     if ($action === 'send_message') {
         $instanceName = $input['instance_name'] ?? '';

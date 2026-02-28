@@ -4,6 +4,9 @@ http_response_code(200);
 
 require_once __DIR__ . '/db.php';
 
+// Definir fuso horário padrão solicitado
+date_default_timezone_set('America/Belem');
+
 // --- CONFIGURAÇÕES DA API ---
 $API_BASE_URL = "https://sspeixoto.uazapi.com";
 

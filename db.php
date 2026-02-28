@@ -1,6 +1,9 @@
 <?php
 // db.php - Conexão centralizada MySQL
 
+// Definir fuso horário padrão solicitado: Americas/Belem (-03)
+date_default_timezone_set('America/Belem');
+
 $DB_HOST = 'srv24.prodns.com.br';
 $DB_NAME = 'sspeixot_whatsapp';
 $DB_USER = 'sspeixot_whatsapp';
