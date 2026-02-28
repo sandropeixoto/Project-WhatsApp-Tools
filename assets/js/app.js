@@ -313,33 +313,49 @@ async function loadGroups() {
             return;
         }
 
-        let html = `<table class="groups-table">
-                    <thead>
+        let html = `<div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
                         <tr>
-                            <th>JID (clique p/ copiar)</th>
-                            <th>Nome</th>
-                            <th>Participantes</th>
-                            <th>Admin?</th>
-                            <th>Anúncio</th>
+                            <th>JID (copiar)</th>
+                            <th>Nome e Descrição</th>
+                            <th class="text-center">Membros</th>
+                            <th class="text-center">Admin?</th>
+                            <th class="text-center">Restrição</th>
                         </tr>
                     </thead>
                     <tbody>`;
 
         groups.forEach(g => {
             html += `<tr>
-                        <td><span class="jid-cell" onclick="copyJid('${escapeHTML(g.jid)}')" title="Clique para copiar">${escapeHTML(g.jid)} <span class="copy-icon">📋</span></span></td>
-                        <td><strong>${escapeHTML(g.name || 'Sem nome')}</strong>${g.description ? '<br><small style="color:#667781;">' + escapeHTML(g.description).substring(0, 60) + '</small>' : ''}</td>
-                        <td style="text-align:center;">${g.participant_count}</td>
-                        <td style="text-align:center;"><span class="${g.is_admin == 1 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${g.is_admin == 1 ? '✅ Sim' : '❌ Não'}</span></td>
-                        <td style="text-align:center;"><span class="${g.is_announce == 1 ? 'text-success fw-bold' : 'text-danger fw-bold'}">${g.is_announce == 1 ? 'Só Admins' : 'Todos'}</span></td>
+                        <td>
+                            <span class="jid-copy shadow-sm" onclick="copyJid('${escapeHTML(g.jid)}', this)" title="Clique para copiar">
+                                ${escapeHTML(g.jid)} <i class="bi bi-clipboard"></i>
+                            </span>
+                        </td>
+                        <td>
+                            <div class="fw-bold text-dark">${escapeHTML(g.name || 'Sem nome')}</div>
+                            ${g.description ? '<div class="text-muted small text-truncate" style="max-width: 300px;" title="' + escapeHTML(g.description) + '">' + escapeHTML(g.description) + '</div>' : ''}
+                        </td>
+                        <td class="text-center"><span class="badge rounded-pill bg-light text-dark border">${g.participant_count}</span></td>
+                        <td class="text-center">
+                            <span class="badge ${g.is_admin == 1 ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'} border">
+                                ${g.is_admin == 1 ? '<i class="bi bi-check-circle-fill me-1"></i>Sim' : '<i class="bi bi-x-circle-fill me-1"></i>Não'}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge ${g.is_announce == 1 ? 'bg-warning-subtle text-warning-emphasis' : 'bg-info-subtle text-info-emphasis'} border">
+                                ${g.is_announce == 1 ? '<i class="bi bi-lock-fill me-1"></i>Só Admins' : '<i class="bi bi-unlock-fill me-1"></i>Todos'}
+                            </span>
+                        </td>
                     </tr>`;
         });
 
-        html += '</tbody></table>';
+        html += '</tbody></table></div>';
         listDiv.innerHTML = html;
 
     } catch (e) {
-        listDiv.innerHTML = '<div style="text-align: center; color: red; font-size: 13px; padding: 30px 0;">Erro ao carregar grupos.</div>';
+        listDiv.innerHTML = '<div class="text-center text-danger py-5">Erro ao carregar grupos.</div>';
     }
 }
 
@@ -354,25 +370,26 @@ async function loadSchedules() {
     }
 
     try {
-        listDiv.innerHTML = '<div class="text-center text-muted py-5 bg-white border rounded"><i class="bi bi-arrow-repeat fs-1 d-block mb-2 text-info spinner-border border-0"></i> Carregando agendamentos...</div>';
+        listDiv.innerHTML = '<div class="text-center text-muted py-5 bg-white border rounded"><div class="spinner-border text-info mb-2"></div><br>Carregando agendamentos...</div>';
 
         const res = await fetch(`api.php?action=get_schedules&name=${encodeURIComponent(activeInstance)}`);
         const schedules = await res.json();
 
         if (!Array.isArray(schedules) || schedules.length === 0) {
-            listDiv.innerHTML = '<div style="text-align: center; color: #666; font-size: 13px; padding: 30px 0;">Nenhum agendamento ativo.</div>';
+            listDiv.innerHTML = '<div class="text-center text-muted py-5 bg-white border rounded">Nenhum agendamento ativo.</div>';
             return;
         }
 
-        let html = `<table class="groups-table table-hover">
-                    <thead>
+        let html = `<div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
                         <tr>
-                            <th>ID</th>
-                            <th>Status</th>
-                            <th>Tipo</th>
+                            <th class="text-center">ID</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Tipo</th>
                             <th>Agendado Para</th>
-                            <th>Payload</th>
-                            <th>Ações</th>
+                            <th>Conteúdo</th>
+                            <th class="text-center">Ações</th>
                         </tr>
                     </thead>
                     <tbody>`;
@@ -387,26 +404,26 @@ async function loadSchedules() {
             try {
                 const parsed = JSON.parse(s.payload);
                 if (s.task_type === 'message' && parsed.text) {
-                    payloadDisplay = '<strong>Para: </strong>' + escapeHTML(parsed.number || '') + '<br><div class="text-muted mt-1" style="font-size:0.9em;">' + escapeHTML(parsed.text).replace(/\\n/g, '<br>') + '</div>';
+                    payloadDisplay = '<div class="mb-1"><strong>Para: </strong><code class="jid-copy" onclick="copyJid(\''+parsed.number+'\', this)">' + escapeHTML(parsed.number || '') + '</code></div><div class="text-muted small" style="white-space: pre-wrap;">' + escapeHTML(parsed.text) + '</div>';
                 } else if (s.task_type === 'status' && parsed.text) {
-                    payloadDisplay = '<strong>Status:</strong><br><div class="text-muted mt-1" style="font-size:0.9em;">' + escapeHTML(parsed.text).replace(/\\n/g, '<br>') + '</div>';
+                    payloadDisplay = '<strong>Status:</strong><div class="text-muted small" style="white-space: pre-wrap;">' + escapeHTML(parsed.text) + '</div>';
                 }
             } catch (e) { }
 
             html += `<tr>
-                        <td style="text-align:center;">${s.id}</td>
-                        <td style="text-align:center;">${statusBadge}</td>
-                        <td style="text-align:center;">${escapeHTML(s.task_type)}</td>
-                        <td>${new Date(s.scheduled_at).toLocaleString()}</td>
-                        <td style="white-space: normal; word-wrap: break-word; min-width: 300px; max-width: 500px;">${payloadDisplay}</td>
-                        <td style="text-align:center; min-width: 100px;">
+                        <td class="text-center text-muted small">#${s.id}</td>
+                        <td class="text-center">${statusBadge}</td>
+                        <td class="text-center"><span class="badge bg-light text-dark border text-uppercase" style="font-size: 0.7rem;">${escapeHTML(s.task_type)}</span></td>
+                        <td class="small">${new Date(s.scheduled_at).toLocaleString('pt-BR')}</td>
+                        <td style="min-width: 250px; max-width: 450px;">${payloadDisplay}</td>
+                        <td class="text-center" style="min-width: 100px;">
                             ${s.status === 'paused' ? `<button class="btn btn-sm btn-success shadow-sm me-1" title="Aprovar Mensagem" onclick="approveSchedule(${s.id})"><i class="bi bi-check2"></i></button>` : ''}
                             ${s.status === 'pending' || s.status === 'paused' ? `<button class="btn btn-sm btn-outline-danger shadow-sm" title="Excluir Agendamento" onclick="deleteSchedule(${s.id})"><i class="bi bi-trash"></i></button>` : ''}
                         </td>
                     </tr>`;
         });
 
-        html += '</tbody></table>';
+        html += '</tbody></table></div>';
         listDiv.innerHTML = html;
 
     } catch (e) {
@@ -436,11 +453,22 @@ async function deleteSchedule(id) {
     }
 }
 
-function copyJid(jid) {
+function copyJid(jid, el) {
+    if (!jid) return;
     navigator.clipboard.writeText(jid).then(() => {
-        const old = event.target.closest('.jid-cell');
-        old.style.color = '#16a34a';
-        setTimeout(() => old.style.color = '#00a884', 1500);
+        const icon = el.querySelector('i');
+        const originalIcon = icon.className;
+        const originalText = el.innerText;
+        
+        icon.className = 'bi bi-check2 text-success';
+        el.classList.add('border-success');
+        
+        setTimeout(() => {
+            icon.className = originalIcon;
+            el.classList.remove('border-success');
+        }, 2000);
+    }).catch(err => {
+        console.error('Erro ao copiar JID: ', err);
     });
 }
 
