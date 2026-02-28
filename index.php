@@ -4,7 +4,7 @@ require_once __DIR__ . '/components/header.php';
 require_once __DIR__ . '/components/sidebar.php';
 ?>
 
-<div class="d-flex flex-grow-1 overflow-hidden position-relative">
+<div class="app-content">
     <!-- Chat Sidebar -->
     <aside class="chat-sidebar" id="chat-sidebar">
         <div class="chat-sidebar-header">

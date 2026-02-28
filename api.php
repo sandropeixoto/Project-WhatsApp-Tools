@@ -86,42 +86,41 @@ if (isset($_GET['action'])) {
         exit;
     }
 
-    // 3b. Buscar lista de chats (conversas únicas)
+    // 3b. Buscar lista de chats (conversas únicas) do banco
     if ($action === 'get_chats') {
         $name = $_GET['name'] ?? '';
         
-        // Query para pegar JIDs únicos dos logs e dos grupos sincronizados
+        // Query unificada: busca todos os JIDs que já enviaram/receberam mensagens OU que estão na tabela de grupos
+        // Garante que trazemos tudo o que está registrado no banco de dados local.
         $stmt = $pdo->prepare("
-            SELECT chat_jid as jid, chat_name as name, is_group, MAX(created_at) as last_activity
-            FROM uazapi_logs
-            WHERE instance_name = ? AND chat_jid IS NOT NULL
-            GROUP BY chat_jid
-            
-            UNION
-            
-            SELECT jid, name, 1 as is_group, updated_at as last_activity
-            FROM uazapi_groups
-            WHERE instance_name = ?
-            
+            SELECT DISTINCT jid, name, is_group, last_activity
+            FROM (
+                SELECT chat_jid as jid, chat_name as name, is_group, MAX(created_at) as last_activity
+                FROM uazapi_logs
+                WHERE instance_name = ? AND chat_jid IS NOT NULL
+                GROUP BY chat_jid
+                
+                UNION
+                
+                SELECT jid, name, 1 as is_group, updated_at as last_activity
+                FROM uazapi_groups
+                WHERE instance_name = ?
+            ) AS combined_chats
             ORDER BY last_activity DESC
         ");
         $stmt->execute([$name, $name]);
         
-        $unique_chats = [];
+        $chats = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $jid = $row['jid'];
-            // Evita duplicatas do UNION (prioriza logs se houver ambos)
-            if (!isset($unique_chats[$jid])) {
-                $unique_chats[$jid] = [
-                    'jid' => $jid,
-                    'name' => $row['name'] ?: $jid,
-                    'is_group' => (bool)$row['is_group'],
-                    'timestamp' => $row['last_activity']
-                ];
-            }
+            $chats[] = [
+                'jid' => $row['jid'],
+                'name' => $row['name'] ?: $row['jid'],
+                'is_group' => (bool)$row['is_group'],
+                'timestamp' => $row['last_activity']
+            ];
         }
         
-        echo json_encode(array_values($unique_chats));
+        echo json_encode($chats);
         exit;
     }
 
