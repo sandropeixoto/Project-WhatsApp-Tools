@@ -144,7 +144,7 @@ endif; ?>
                         placeholder="Repita a senha">
                 </div>
                 <button type="submit" class="btn btn-wa w-100 py-2 mb-2">Cadastrar Usuário</button>
-                <a href="index.php" class="btn btn-wa-outline w-100 py-2">Voltar ao Painel</a>
+                <a href="users.php" class="btn btn-wa-outline w-100 py-2">Voltar à Gestão</a>
             </form>
         </div>
     </div>
