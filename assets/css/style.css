@@ -523,6 +523,35 @@
             margin-bottom: 2px;
         }
 
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-list::-webkit-scrollbar,
+        .chat-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-list:hover::-webkit-scrollbar-thumb,
+        .chat-container:hover::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .chat-list::-webkit-scrollbar-thumb,
+        .chat-container::-webkit-scrollbar-thumb {
+            background-color: transparent;
+        }
+
         @media (max-width: 768px) {
             .chat-sidebar {
                 width: 100%;
