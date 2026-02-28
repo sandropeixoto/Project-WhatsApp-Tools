@@ -21,13 +21,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'sync_instances') {
         exit;
     }
 
+    $syncTime = date('Y-m-d H:i:s');
     $stmt = $pdo->prepare("INSERT INTO uazapi_instances
-        (name, token, status, profile_name, profile_pic_url, phone_number, is_business, platform)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (name, token, status, profile_name, profile_pic_url, phone_number, is_business, platform, last_seen)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
             token = VALUES(token), status = VALUES(status), profile_name = VALUES(profile_name),
             profile_pic_url = VALUES(profile_pic_url), phone_number = VALUES(phone_number),
-            is_business = VALUES(is_business), platform = VALUES(platform)");
+            is_business = VALUES(is_business), platform = VALUES(platform), last_seen = VALUES(last_seen)");
 
     foreach ($instances as $inst) {
         $name = $inst['name'] ?? '';
@@ -40,9 +41,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'sync_instances') {
         $owner = $inst['owner'] ?? '';
         $phone = preg_replace('/[^0-9]/', '', explode('@', $owner)[0] ?? '');
         $isBusiness = !empty($inst['isBusiness']) ? 1 : 0;
-        $platform = $inst['plataform'] ?? '';
-        $stmt->execute([$name, $token, $status, $profileName, $profilePicUrl, $phone, $isBusiness, $platform]);
+        $platform = $inst['platform'] ?? $inst['plataform'] ?? '';
+        $stmt->execute([$name, $token, $status, $profileName, $profilePicUrl, $phone, $isBusiness, $platform, $syncTime]);
     }
+
+    // Mark instances not seen in this sync as disconnected
+    $pdo->prepare("UPDATE uazapi_instances SET status = 'disconnected' WHERE last_seen < ? OR last_seen IS NULL")->execute([$syncTime]);
 
     echo json_encode(['success' => true, 'count' => count($instances)]);
     exit;

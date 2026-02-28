@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS uazapi_instances (
     profile_pic_url TEXT DEFAULT NULL,
     phone_number VARCHAR(50) DEFAULT NULL,
     is_business TINYINT(1) DEFAULT 0,
-    platform VARCHAR(50) DEFAULT NULL
+    platform VARCHAR(50) DEFAULT NULL,
+    last_seen DATETIME DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS uazapi_logs (
