@@ -20,7 +20,7 @@ require_once __DIR__ . '/components/sidebar.php';
 
         <div class="search-container">
             <div class="search-box">
-                <i class="bi bi-search text-secondary small"></i>
+                <i class="bi bi-search"></i>
                 <input type="text" placeholder="Pesquisar ou começar uma nova conversa" id="chat-search">
             </div>
         </div>
@@ -105,19 +105,14 @@ function renderChatList(chats) {
     }
 
     list.innerHTML = chats.map(chat => {
-        const time = chat.timestamp ? new Date(chat.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
-        const lastMsg = chat.last_message_text || '';
         const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(chat.name)}&background=random&color=fff`;
+        const groupIcon = chat.is_group ? '<i class="bi bi-people-fill text-secondary small me-1"></i>' : '';
         
         return `
             <div class="chat-item ${currentJid === chat.jid ? 'active' : ''}" onclick="selectChat('${chat.jid}', '${chat.name}', '${avatar}')">
                 <img src="${avatar}" class="chat-item-avatar" alt="">
                 <div class="chat-item-info">
-                    <div class="chat-item-top">
-                        <span class="chat-item-name">${chat.name}</span>
-                        <span class="chat-item-time">${time}</span>
-                    </div>
-                    <div class="chat-item-msg">${lastMsg}</div>
+                    <div class="chat-item-name">${groupIcon}${chat.name}</div>
                 </div>
             </div>
         `;
