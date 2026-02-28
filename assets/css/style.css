@@ -168,6 +168,7 @@ body {
     background-color: var(--wa-chat-bg);
     background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
     background-repeat: repeat;
+    height: 100%; /* Garantir altura para scroll */
 }
 
 /* Message Bubbles */
@@ -182,7 +183,7 @@ body {
 
 .bubble {
     max-width: 65%;
-    padding: 6px 7px 8px 9px;
+    padding: 6px 7px 15px 9px; /* Aumentado padding inferior para o horário */
     border-radius: 7.5px;
     font-size: 14.2px;
     line-height: 19px;
@@ -190,6 +191,7 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
+    min-width: 80px; /* Garantir espaço para o horário */
 }
 
 .bubble.in {
@@ -200,6 +202,17 @@ body {
 .bubble.out {
     background-color: #d9fdd3;
     border-top-right-radius: 0;
+}
+
+.sticker-bubble {
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    min-width: auto !important;
+}
+
+.bubble-content {
+    width: 100%;
 }
 
 .sender-name {
@@ -213,22 +226,43 @@ body {
     color: #111b21;
     word-wrap: break-word;
     white-space: pre-wrap;
-    padding-right: 45px;
+    margin-bottom: 2px;
+    padding-right: 4px;
 }
 
 .time {
     font-size: 11px;
     color: #667781;
     position: absolute;
-    bottom: 4px;
+    bottom: 3px;
     right: 7px;
+    background: transparent;
+    padding: 0;
+}
+
+.sticker-bubble .time {
+    position: static;
+    text-align: right;
+    margin-top: 4px;
+    padding-right: 5px;
 }
 
 /* Media Messages */
 .msg-image, .msg-video {
-    max-width: 100%;
+    max-width: 300px; /* Tamanho proporcional */
+    max-height: 400px;
+    width: auto;
+    height: auto;
     border-radius: 6px;
     cursor: pointer;
+    display: block;
+}
+
+.msg-sticker {
+    max-width: 150px; /* Stickers menores */
+    width: auto;
+    height: auto;
+    display: block;
 }
 
 .msg-audio {

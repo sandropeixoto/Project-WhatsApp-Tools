@@ -161,6 +161,8 @@ async function loadMessages(jid) {
             let content = '';
             if (msg.message_type === 'ImageMessage' && msg.file_url) {
                 content = `<img src="${msg.file_url}" class="msg-image shadow-sm mb-2" onclick="window.open('${msg.file_url}')">`;
+            } else if (msg.message_type === 'StickerMessage' && msg.file_url) {
+                content = `<img src="${msg.file_url}" class="msg-sticker mb-1" onclick="window.open('${msg.file_url}')">`;
             } else if (msg.message_type === 'AudioMessage' && msg.file_url) {
                 content = `<audio controls class="msg-audio"><source src="${msg.file_url}" type="${msg.mimetype || 'audio/ogg'}"></audio>`;
             } else if (msg.message_type === 'VideoMessage' && msg.file_url) {
@@ -173,12 +175,15 @@ async function loadMessages(jid) {
 
             // Se for grupo, mostra o nome do remetente
             const senderInfo = (msg.is_group == 1 && !isOut) ? `<div class="sender-name small mb-1">${msg.sender_name || msg.sender_jid}</div>` : '';
+            const isSticker = msg.message_type === 'StickerMessage';
             
             return `
                 <div class="msg-row ${isOut ? 'out' : 'in'}">
-                    <div class="bubble ${isOut ? 'out' : 'in'}">
+                    <div class="bubble ${isOut ? 'out' : 'in'} ${isSticker ? 'sticker-bubble' : ''}">
                         ${senderInfo}
-                        ${content}
+                        <div class="bubble-content">
+                            ${content}
+                        </div>
                         <div class="time">${time}</div>
                     </div>
                 </div>

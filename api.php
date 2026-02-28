@@ -135,8 +135,7 @@ if (isset($_GET['action'])) {
                 text, file_url, mimetype, file_name, created_at
             FROM uazapi_logs 
             WHERE instance_name = ? AND chat_jid = ? 
-            ORDER BY id ASC 
-            LIMIT 100
+            ORDER BY id ASC
         ");
         $stmt->execute([$name, $jid]);
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
