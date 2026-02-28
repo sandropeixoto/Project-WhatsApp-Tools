@@ -48,7 +48,10 @@ function isAuthenticated($pdo)
 }
 
 if (!isAuthenticated($pdo)) {
-    // Redireciona para o login se não estiver autenticado
-    header("Location: login.php");
-    exit;
+    // Só redireciona se não estiver na página de login ou de registro
+    $current_page = basename($_SERVER['PHP_SELF']);
+    if ($current_page !== 'login.php' && $current_page !== 'register.php') {
+        header("Location: login.php");
+        exit;
+    }
 }
