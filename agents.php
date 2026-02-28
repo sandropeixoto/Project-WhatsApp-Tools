@@ -3,110 +3,98 @@ $pageTitle = 'Agentes de IA';
 require_once __DIR__ . '/components/header.php';
 require_once __DIR__ . '/components/sidebar.php';
 ?>
-<main class="flex-grow-1 overflow-auto bg-light chat-bg p-3">
-    <div class="container-fluid max-w-1200">
-        <div class="d-flex justify-content-between align-items-center mb-3 bg-white p-3 rounded shadow-sm">
-            <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-robot text-warning me-2"></i>Agentes de IA (OpenCode)
-            </h5>
-            <div>
-                <button class="btn btn-outline-secondary btn-sm px-3 fw-semibold shadow-sm me-2" onclick="loadAgents()">
-                    <i class="bi bi-arrow-repeat me-1"></i>Atualizar
-                </button>
-                <button class="btn btn-primary btn-sm px-3 fw-semibold shadow-sm" data-bs-toggle="modal"
-                    data-bs-target="#newAgentModal">
-                    <i class="bi bi-plus-lg me-1"></i>Novo Agente
-                </button>
+
+<div class="app-content">
+    <main class="flex-grow-1 overflow-auto bg-light p-4">
+        <div class="container-fluid">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="fw-bold"><i class="bi bi-robot text-success me-2"></i> Agentes de IA</h3>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary px-4 rounded-pill shadow-sm" onclick="loadAgents()">
+                        <i class="bi bi-arrow-repeat me-2"></i> Atualizar
+                    </button>
+                    <button class="btn btn-wa px-4 rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#newAgentModal">
+                        <i class="bi bi-plus-lg me-2"></i> Novo Agente
+                    </button>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">Nome / Prompt</th>
+                                <th>Destinatário</th>
+                                <th class="text-center">Intervalo</th>
+                                <th class="text-center">Revisar?</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-end pe-4">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agents-list">
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <div class="spinner-border text-success spinner-border-sm me-2" role="status"></div>
+                                    Carregando agentes...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
+    </main>
+</div>
 
-        <div class="bg-white rounded shadow-sm overflow-hidden">
-            <table class="table table-hover mb-0 align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th class="border-0 text-muted small fw-semibold px-3">Nome</th>
-                        <th class="border-0 text-muted small fw-semibold">Destinatário</th>
-                        <th class="border-0 text-muted small fw-semibold">Intervalo (min)</th>
-                        <th class="border-0 text-muted small fw-semibold">Revisar?</th>
-                        <th class="border-0 text-muted small fw-semibold">Status</th>
-                        <th class="border-0 text-muted small fw-semibold text-end px-3">Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="agents-list">
-                    <tr>
-                        <td colspan="6" class="text-center py-4 text-muted small">Carregando agentes...</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</main>
-
-<!-- Modal Novo Agente -->
+<!-- Modal Novo Agente (Mantido layout original ajustado) -->
 <div class="modal fade" id="newAgentModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white border-0">
-                <h5 class="modal-title fw-bold"><i class="bi bi-robot me-2 text-warning"></i><span
-                        id="agent-modal-title">Criar Novo Agente</span></h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                    aria-label="Close"></button>
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 bg-wa-gradient text-white p-4" style="background: linear-gradient(135deg, var(--wa-primary), var(--wa-teal));">
+                <h5 class="modal-title fw-bold"><i class="bi bi-robot me-2"></i><span id="agent-modal-title">Criar Novo Agente</span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body bg-light">
+            <div class="modal-body p-4 bg-light">
                 <form id="new-agent-form">
                     <input type="hidden" id="agent-id" value="">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted mb-1 text-uppercase">Nome do Agente
-                                *</label>
-                            <input type="text" class="form-control bg-white" id="agent-name"
-                                placeholder="Ex: Versículos Diários" required>
+                            <label class="form-label small fw-bold text-muted mb-1 text-uppercase">Nome do Agente *</label>
+                            <input type="text" class="form-control border-0 shadow-sm py-2 px-3" id="agent-name" placeholder="Ex: Versículos Diários" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold text-muted mb-1 text-uppercase">Destinatário
-                                (Número/JID) *</label>
-                            <input type="text" class="form-control bg-white" id="agent-recipient"
-                                placeholder="Ex: 5511999999999" required>
+                            <label class="form-label small fw-bold text-muted mb-1 text-uppercase">Destinatário (Número/JID) *</label>
+                            <input type="text" class="form-control border-0 shadow-sm py-2 px-3" id="agent-recipient" placeholder="Ex: 5511999999999" required>
                         </div>
                         <div class="col-12">
-                            <label class="form-label small fw-bold text-muted mb-1 text-uppercase">Tema / Prompt para IA
-                                *</label>
-                            <textarea class="form-control bg-white" id="agent-prompt" rows="3"
-                                placeholder="Ex: Escreva uma curta mensagem matinal animadora com um versículo bíblico."
-                                required></textarea>
-                            <div class="form-text small"><i class="bi bi-info-circle me-1"></i>Seja criativo e direto no
-                                que deseja gerar a cada ciclo.</div>
+                            <label class="form-label small fw-bold text-muted mb-1 text-uppercase">Tema / Prompt para IA *</label>
+                            <textarea class="form-control border-0 shadow-sm py-2 px-3" id="agent-prompt" rows="3" placeholder="Ex: Escreva uma curta mensagem matinal animadora com um versículo bíblico." required></textarea>
                         </div>
                         <div class="col-md-4">
-                            <label
-                                class="form-label small fw-bold text-muted mb-1 text-uppercase">Ciclo/Intervalo</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control bg-white" id="agent-interval" value="60"
-                                    min="1" required>
-                                <span class="input-group-text bg-white">min</span>
+                            <label class="form-label small fw-bold text-muted mb-1 text-uppercase">Intervalo</label>
+                            <div class="input-group shadow-sm rounded">
+                                <input type="number" class="form-control border-0 py-2 px-3" id="agent-interval" value="60" min="1" required>
+                                <span class="input-group-text border-0 bg-white text-muted">min</span>
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold text-muted mb-1 text-uppercase">Não disparar
-                                entre:</label>
-                            <input type="text" class="form-control bg-white" id="agent-restricted"
-                                placeholder="Ex: 22:00-08:00">
-                            <div class="form-text small">Horário restrito (Opcional)</div>
+                            <label class="form-label small fw-bold text-muted mb-1 text-uppercase">Horário Restrito</label>
+                            <input type="text" class="form-control border-0 shadow-sm py-2 px-3" id="agent-restricted" placeholder="Ex: 22:00-08:00">
                         </div>
-                        <div class="col-md-4 d-flex align-items-end">
-                            <div class="form-check form-switch mb-2">
+                        <div class="col-md-4 d-flex align-items-end pb-1">
+                            <div class="form-check form-switch custom-switch">
                                 <input class="form-check-input" type="checkbox" role="switch" id="agent-review" checked>
-                                <label class="form-check-label fw-semibold" for="agent-review">Requer Revisão Antes do
-                                    Envio</label>
-                                <div class="form-text small mt-0">A msg vai para "Agendamentos" pausada.</div>
+                                <label class="form-check-label fw-semibold text-muted small" for="agent-review">Requer Revisão</label>
                             </div>
                         </div>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer border-0 bg-white">
-                <button type="button" class="btn btn-light shadow-sm" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary fw-semibold shadow-sm px-4" id="btn-save-agent">
-                    <i class="bi bi-check2-circle me-1"></i><span id="agent-btn-text">Criar Agente</span>
+            <div class="modal-footer border-0 bg-white p-4">
+                <button type="button" class="btn btn-light px-4 rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-wa px-4 rounded-pill shadow-sm" id="btn-save-agent">
+                    <i class="bi bi-check2-circle me-2"></i><span id="agent-btn-text">Criar Agente</span>
                 </button>
             </div>
         </div>
@@ -122,10 +110,8 @@ require_once __DIR__ . '/components/sidebar.php';
             newAgentModal.addEventListener('hidden.bs.modal', function () {
                 document.getElementById('new-agent-form').reset();
                 document.getElementById('agent-id').value = '';
-                const titleSpan = document.getElementById('agent-modal-title');
-                const btnSpan = document.getElementById('agent-btn-text');
-                if (titleSpan) titleSpan.textContent = 'Criar Novo Agente';
-                if (btnSpan) btnSpan.textContent = 'Criar Agente';
+                document.getElementById('agent-modal-title').textContent = 'Criar Novo Agente';
+                document.getElementById('agent-btn-text').textContent = 'Criar Agente';
             });
         }
 
@@ -135,4 +121,5 @@ require_once __DIR__ . '/components/sidebar.php';
         }
     });
 </script>
+
 <?php require_once __DIR__ . '/components/footer.php'; ?>

@@ -3,41 +3,54 @@ $pageTitle = 'Agendamentos';
 require_once __DIR__ . '/components/header.php';
 require_once __DIR__ . '/components/sidebar.php';
 ?>
-<main class="flex-grow-1 overflow-auto bg-light chat-bg p-3">
-    <div class="container-fluid max-w-1200">
-        <div class="d-flex justify-content-between align-items-center mb-3 bg-white p-3 rounded shadow-sm">
-            <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-calendar-check text-primary me-2"></i>Agendamentos</h5>
-            <button class="btn btn-primary btn-sm px-3 fw-semibold shadow-sm" onclick="loadSchedules()">
-                <i class="bi bi-arrow-repeat me-1"></i>Atualizar
-            </button>
+
+<div class="app-content">
+    <main class="flex-grow-1 overflow-auto bg-light p-4">
+        <div class="container-fluid">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="fw-bold"><i class="bi bi-calendar-check text-success me-2"></i> Agendamentos</h3>
+                <button class="btn btn-wa px-4 rounded-pill shadow-sm" onclick="loadSchedules()">
+                    <i class="bi bi-arrow-repeat me-2"></i> Atualizar
+                </button>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">ID</th>
+                                <th>Status</th>
+                                <th>Tipo</th>
+                                <th>Agendado Para</th>
+                                <th>Detalhes</th>
+                                <th class="text-end pe-4">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="schedules-list">
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <div class="spinner-border text-success spinner-border-sm me-2" role="status"></div>
+                                    Carregando agendamentos...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-        <div class="bg-white rounded shadow-sm overflow-hidden">
-            <table class="table table-hover mb-0 align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th class="border-0 text-muted small fw-semibold text-uppercase px-3">Data Agendada</th>
-                        <th class="border-0 text-muted small fw-semibold text-uppercase">Tipo</th>
-                        <th class="border-0 text-muted small fw-semibold text-uppercase">Detalhes</th>
-                        <th class="border-0 text-muted small fw-semibold text-uppercase">Status</th>
-                        <th class="border-0 text-muted small fw-semibold text-uppercase text-end px-3">Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="schedules-list">
-                    <tr>
-                        <td colspan="5" class="text-center py-4 text-muted small">Carregando agendamentos...</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</main>
+    </main>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
-            if (activeInstanceName) {
+            const selector = document.getElementById('instance-selector');
+            if (selector && selector.value) {
                 loadSchedules();
             }
         }, 500);
     });
 </script>
+
 <?php require_once __DIR__ . '/components/footer.php'; ?>
