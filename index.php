@@ -106,7 +106,7 @@ function renderChatList(chats) {
 
     list.innerHTML = chats.map(chat => {
         const time = chat.timestamp ? new Date(chat.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
-        const lastMsg = chat.last_message ? (chat.last_message.text || 'Mídia') : '';
+        const lastMsg = chat.last_message_text || '';
         const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(chat.name)}&background=random&color=fff`;
         
         return `
@@ -135,7 +135,10 @@ async function selectChat(jid, name, avatar) {
     
     // Highlight in list
     document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
-    event?.currentTarget?.classList.add('active');
+    // Find the clicked item if triggered by click
+    if (event && event.currentTarget) {
+        event.currentTarget.classList.add('active');
+    }
 
     if (window.innerWidth < 768) toggleSidebar(false);
 
@@ -144,25 +147,43 @@ async function selectChat(jid, name, avatar) {
 
 async function loadMessages(jid) {
     const monitor = document.getElementById('monitor');
-    monitor.innerHTML = '<div class="text-center py-5 text-muted small">Carregando mensagens...</div>';
+    monitor.innerHTML = '<div class="text-center py-5 text-muted small">Carregando mensagens do banco...</div>';
     
     try {
         const response = await fetch(`api.php?action=get_chat_messages&name=${encodeURIComponent(instanceName)}&jid=${encodeURIComponent(jid)}`);
         const messages = await response.json();
         
         if (messages.length === 0) {
-            monitor.innerHTML = '<div class="text-center py-5 text-muted small">Nenhuma mensagem nesta conversa.</div>';
+            monitor.innerHTML = '<div class="text-center py-5 text-muted small">Nenhuma mensagem registrada no banco para esta conversa.</div>';
             return;
         }
 
         monitor.innerHTML = messages.map(msg => {
-            const isOut = msg.fromMe;
-            const time = new Date(msg.messageTimestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const isOut = msg.from_me == 1;
+            const timestamp = msg.message_timestamp ? parseInt(msg.message_timestamp) : (new Date(msg.created_at).getTime() / 1000);
+            const time = new Date(timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            let content = '';
+            if (msg.message_type === 'ImageMessage' && msg.file_url) {
+                content = `<img src="${msg.file_url}" class="msg-image shadow-sm mb-2" onclick="window.open('${msg.file_url}')">`;
+            } else if (msg.message_type === 'AudioMessage' && msg.file_url) {
+                content = `<audio controls class="msg-audio"><source src="${msg.file_url}" type="${msg.mimetype || 'audio/ogg'}"></audio>`;
+            } else if (msg.message_type === 'VideoMessage' && msg.file_url) {
+                content = `<video controls class="msg-video shadow-sm mb-2"><source src="${msg.file_url}" type="${msg.mimetype || 'video/mp4'}"></video>`;
+            }
+            
+            if (msg.text) {
+                content += `<div class="msg-text">${msg.text}</div>`;
+            }
+
+            // Se for grupo, mostra o nome do remetente
+            const senderInfo = (msg.is_group == 1 && !isOut) ? `<div class="sender-name small mb-1">${msg.sender_name || msg.sender_jid}</div>` : '';
             
             return `
                 <div class="msg-row ${isOut ? 'out' : 'in'}">
                     <div class="bubble ${isOut ? 'out' : 'in'}">
-                        <div class="msg-text">${msg.text || ''}</div>
+                        ${senderInfo}
+                        ${content}
                         <div class="time">${time}</div>
                     </div>
                 </div>
@@ -172,6 +193,7 @@ async function loadMessages(jid) {
         monitor.scrollTop = monitor.scrollHeight;
     } catch (e) {
         console.error("Erro ao carregar mensagens", e);
+        monitor.innerHTML = '<div class="text-center py-5 text-danger small">Erro ao carregar mensagens do banco de dados.</div>';
     }
 }
 

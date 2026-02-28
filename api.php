@@ -89,9 +89,8 @@ if (isset($_GET['action'])) {
     // 3b. Buscar lista de chats (conversas únicas)
     if ($action === 'get_chats') {
         $name = $_GET['name'] ?? '';
-        // Seleciona o último payload de cada chat_jid único
         $stmt = $pdo->prepare("
-            SELECT t1.chat_jid, t1.chat_name, t1.is_group, t1.payload, t1.created_at
+            SELECT t1.chat_jid, t1.chat_name, t1.is_group, t1.text as last_text, t1.message_type, t1.created_at
             FROM uazapi_logs t1
             INNER JOIN (
                 SELECT chat_jid, MAX(id) as max_id
@@ -104,12 +103,11 @@ if (isset($_GET['action'])) {
         $stmt->execute([$name]);
         $chats = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $payload = json_decode($row['payload'], true);
             $chats[] = [
                 'jid' => $row['chat_jid'],
                 'name' => $row['chat_name'] ?: $row['chat_jid'],
                 'is_group' => (bool)$row['is_group'],
-                'last_message' => $payload,
+                'last_message_text' => $row['last_text'] ?: ($row['message_type'] ? '[' . $row['message_type'] . ']' : ''),
                 'timestamp' => $row['created_at']
             ];
         }
@@ -122,18 +120,17 @@ if (isset($_GET['action'])) {
         $name = $_GET['name'] ?? '';
         $jid = $_GET['jid'] ?? '';
         $stmt = $pdo->prepare("
-            SELECT payload 
+            SELECT 
+                id, message_id, chat_jid, sender_jid, sender_name, 
+                is_group, from_me, message_type, message_timestamp, 
+                text, file_url, mimetype, file_name, created_at
             FROM uazapi_logs 
             WHERE instance_name = ? AND chat_jid = ? 
             ORDER BY id ASC 
             LIMIT 100
         ");
         $stmt->execute([$name, $jid]);
-        $messages = [];
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $messages[] = json_decode($row['payload'], true);
-        }
-        echo json_encode($messages);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit;
     }
 
