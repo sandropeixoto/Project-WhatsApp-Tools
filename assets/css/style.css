@@ -28,11 +28,10 @@
             background-repeat: repeat;
         }
 
-        /* Keep existing chat bubble CSS */
         .chat-container {
             flex: 1;
             padding: 20px;
-            overflow-y: auto;
+            overflow-y: auto !important;
             display: flex;
             flex-direction: column;
         }
