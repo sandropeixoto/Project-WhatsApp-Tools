@@ -86,6 +86,57 @@ if (isset($_GET['action'])) {
         exit;
     }
 
+    // 3b. Buscar lista de chats (conversas únicas)
+    if ($action === 'get_chats') {
+        $name = $_GET['name'] ?? '';
+        // Seleciona o último payload de cada chat_jid único
+        $stmt = $pdo->prepare("
+            SELECT t1.chat_jid, t1.chat_name, t1.is_group, t1.payload, t1.created_at
+            FROM uazapi_logs t1
+            INNER JOIN (
+                SELECT chat_jid, MAX(id) as max_id
+                FROM uazapi_logs
+                WHERE instance_name = ? AND chat_jid IS NOT NULL
+                GROUP BY chat_jid
+            ) t2 ON t1.id = t2.max_id
+            ORDER BY t1.id DESC
+        ");
+        $stmt->execute([$name]);
+        $chats = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $payload = json_decode($row['payload'], true);
+            $chats[] = [
+                'jid' => $row['chat_jid'],
+                'name' => $row['chat_name'] ?: $row['chat_jid'],
+                'is_group' => (bool)$row['is_group'],
+                'last_message' => $payload,
+                'timestamp' => $row['created_at']
+            ];
+        }
+        echo json_encode($chats);
+        exit;
+    }
+
+    // 3c. Buscar histórico de um chat específico
+    if ($action === 'get_chat_messages') {
+        $name = $_GET['name'] ?? '';
+        $jid = $_GET['jid'] ?? '';
+        $stmt = $pdo->prepare("
+            SELECT payload 
+            FROM uazapi_logs 
+            WHERE instance_name = ? AND chat_jid = ? 
+            ORDER BY id ASC 
+            LIMIT 100
+        ");
+        $stmt->execute([$name, $jid]);
+        $messages = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $messages[] = json_decode($row['payload'], true);
+        }
+        echo json_encode($messages);
+        exit;
+    }
+
     // 4. Enviar Mensagem
     if ($action === 'send_message') {
         $instanceName = $input['instance_name'] ?? '';
